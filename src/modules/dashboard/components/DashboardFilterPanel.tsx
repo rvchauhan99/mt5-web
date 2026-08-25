@@ -223,11 +223,11 @@ export function DashboardFilterPanel({
             </Select>
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wider">Player</label>
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wider">Trader</label>
             <AutocompleteField
               value={localValues.player_id}
               onChange={(val) => handleChange("player_id", val)}
-              placeholder="Search player..."
+              placeholder="Search trader..."
               disabled={loading}
               loadOptions={async (query) => {
                 const res = await apiClient.get("/players", { params: { search: query, limit: 20 } });

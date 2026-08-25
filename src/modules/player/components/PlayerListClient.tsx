@@ -20,11 +20,10 @@ const COLUMN_FILTER_KEYS = [
   "playerId_op",
   "phone",
   "phone_op",
+  "userType",
+  "userType_op",
   "exchangeName",
   "exchangeName_op",
-  "bonusPercentage",
-  "bonusPercentage_to",
-  "bonusPercentage_op",
   "createdBy",
   "createdAt_from",
   "createdAt_to",
@@ -73,6 +72,10 @@ function formatExchangeLabel(exchange: PlayerRow["exchange"]): string {
   const provider = exchange.provider?.trim();
   if (name && provider) return `${name} (${provider})`;
   return name || provider || "—";
+}
+
+function formatUserTypeLabel(userType: PlayerRow["userType"] | undefined): string {
+  return userType === "ib" ? "IB" : "Trader";
 }
 
 export function PlayerListClient() {
@@ -171,17 +174,16 @@ export function PlayerListClient() {
     handleExport({
       page: 1,
       limit: 10000,
-      sortBy: (sortBy || "createdAt") as "createdAt" | "playerId" | "phone" | "bonusPercentage",
+      sortBy: (sortBy || "createdAt") as "createdAt" | "playerId" | "phone" | "userType",
       sortOrder: (sortOrder === "asc" ? "asc" : "desc") as "asc" | "desc",
       playerId: toOptionalFilterValue(filters.playerId || ""),
       playerId_op: toOptionalFilterValue(filters.playerId_op || ""),
       phone: toOptionalFilterValue(filters.phone || ""),
       phone_op: toOptionalFilterValue(filters.phone_op || ""),
+      userType: toOptionalFilterValue(filters.userType || ""),
+      userType_op: toOptionalFilterValue(filters.userType_op || ""),
       exchangeName: toOptionalFilterValue(filters.exchangeName || ""),
       exchangeName_op: toOptionalFilterValue(filters.exchangeName_op || ""),
-      bonusPercentage: toOptionalFilterValue(filters.bonusPercentage || ""),
-      bonusPercentage_to: toOptionalFilterValue(filters.bonusPercentage_to || ""),
-      bonusPercentage_op: toOptionalFilterValue(filters.bonusPercentage_op || ""),
       createdBy: toOptionalFilterValue(filters.createdBy || ""),
       createdAt_from: toOptionalFilterValue(filters.createdAt_from || ""),
       createdAt_to: toOptionalFilterValue(filters.createdAt_to || ""),
@@ -204,7 +206,7 @@ export function PlayerListClient() {
       },
       {
         field: "playerId",
-        label: "Player Id",
+        label: "Trader Id",
         render: (row: PlayerRow) => row.playerId,
         minWidth: 120,
         sortable: true,
@@ -225,16 +227,26 @@ export function PlayerListClient() {
         defaultFilterOperator: "contains",
       },
       {
-        field: "bonusPercentage",
-        label: "Bonus %",
-        render: (row: PlayerRow) => `${Number(row.bonusPercentage ?? 0)}%`,
+        field: "email",
+        label: "Email",
+        render: (row: PlayerRow) => row.email?.trim() || "—",
+        minWidth: 160,
+        sortable: false,
+      },
+      {
+        field: "userType",
+        label: "User type",
+        render: (row: PlayerRow) => formatUserTypeLabel(row.userType),
+        minWidth: 110,
         sortable: true,
-        minWidth: 100,
-        filterType: "number" as const,
-        filterKey: "bonusPercentage",
-        filterKeyTo: "bonusPercentage_to",
-        operatorKey: "bonusPercentage_op",
+        filterType: "select" as const,
+        filterKey: "userType",
+        operatorKey: "userType_op",
         defaultFilterOperator: "equals",
+        filterOptions: [
+          { label: "Trader", value: "trader" },
+          { label: "IB", value: "ib" },
+        ],
       },
       {
         field: "createdBy",
@@ -272,8 +284,8 @@ export function PlayerListClient() {
 
   return (
     <ListingPageContainer
-      title="Player / List"
-      description="Search, filter and review all exchange players."
+      title="Trader / List"
+      description="Search, filter and review all exchange traders."
       density="compact"
       fullWidth
       secondaryButtonLabel="Reset filters"
@@ -296,11 +308,10 @@ export function PlayerListClient() {
           playerId_op: toOptionalFilterValue(filters.playerId_op || ""),
           phone: toOptionalFilterValue(filters.phone || ""),
           phone_op: toOptionalFilterValue(filters.phone_op || ""),
+          userType: toOptionalFilterValue(filters.userType || ""),
+          userType_op: toOptionalFilterValue(filters.userType_op || ""),
           exchangeName: toOptionalFilterValue(filters.exchangeName || ""),
           exchangeName_op: toOptionalFilterValue(filters.exchangeName_op || ""),
-          bonusPercentage: toOptionalFilterValue(filters.bonusPercentage || ""),
-          bonusPercentage_to: toOptionalFilterValue(filters.bonusPercentage_to || ""),
-          bonusPercentage_op: toOptionalFilterValue(filters.bonusPercentage_op || ""),
           createdBy: toOptionalFilterValue(filters.createdBy || ""),
           createdAt_from: toOptionalFilterValue(filters.createdAt_from || ""),
           createdAt_to: toOptionalFilterValue(filters.createdAt_to || ""),

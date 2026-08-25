@@ -61,6 +61,10 @@ function parseAuditUser(
   return { id, name };
 }
 
+function normalizePlayerUserType(value: unknown): PlayerRow["userType"] {
+  return String(value ?? "").trim().toLowerCase() === "ib" ? "ib" : "trader";
+}
+
 function normalizePlayer(row: Record<string, unknown>): PlayerRow {
   const id = String(row._id ?? row.id ?? "");
   const ex = row.exchange;
@@ -81,6 +85,8 @@ function normalizePlayer(row: Record<string, unknown>): PlayerRow {
     exchange: ex as PlayerRow["exchange"],
     playerId: String(row.playerId ?? ""),
     phone: String(row.phone ?? ""),
+    email: toOptionalParam(row.email),
+    userType: normalizePlayerUserType(row.userType),
     regularBonusPercentage: Number(row.regularBonusPercentage ?? row.bonusPercentage ?? 0),
     firstDepositBonusPercentage: Number(row.firstDepositBonusPercentage ?? 0),
     referredByPlayerId: referredBy,
@@ -118,6 +124,8 @@ export async function getPlayerById(
     exchange: row.exchange as PlayerRow["exchange"],
     playerId: String(row.playerId ?? ""),
     phone: String(row.phone ?? ""),
+    email: toOptionalParam(row.email),
+    userType: normalizePlayerUserType(row.userType),
     regularBonusPercentage,
     firstDepositBonusPercentage: Number(row.firstDepositBonusPercentage ?? 0),
     referredByPlayerId:
@@ -299,7 +307,12 @@ export async function listPlayersNormalized(params: Record<string, unknown>): Pr
 }> {
   const page = Number(params.page) || 1;
   const limit = Number(params.limit) || 20;
-  const sortBy = (str(params, "sortBy") || "createdAt") as "createdAt" | "playerId" | "phone" | "bonusPercentage";
+  const sortBy = (str(params, "sortBy") || "createdAt") as
+    | "createdAt"
+    | "playerId"
+    | "phone"
+    | "userType"
+    | "bonusPercentage";
   const sortOrder = str(params, "sortOrder") === "asc" ? "asc" : "desc";
 
   const response = await apiClient.get<{
@@ -317,6 +330,8 @@ export async function listPlayersNormalized(params: Record<string, unknown>): Pr
       playerId_op: toOptionalParam(str(params, "playerId_op")),
       phone: toOptionalParam(str(params, "phone")),
       phone_op: toOptionalParam(str(params, "phone_op")),
+      userType: toOptionalParam(str(params, "userType")),
+      userType_op: toOptionalParam(str(params, "userType_op")),
       exchangeName: toOptionalParam(str(params, "exchangeName")),
       exchangeName_op: toOptionalParam(str(params, "exchangeName_op")),
       exchangeId: toOptionalParam(str(params, "exchangeId")),
@@ -345,7 +360,12 @@ export async function listPlayersNormalized(params: Record<string, unknown>): Pr
 export async function exportPlayers(params: Record<string, unknown>): Promise<Blob> {
   const page = Number(params.page) || 1;
   const limit = Number(params.limit) || 20;
-  const sortBy = (str(params, "sortBy") || "createdAt") as "createdAt" | "playerId" | "phone" | "bonusPercentage";
+  const sortBy = (str(params, "sortBy") || "createdAt") as
+    | "createdAt"
+    | "playerId"
+    | "phone"
+    | "userType"
+    | "bonusPercentage";
   const sortOrder = str(params, "sortOrder") === "asc" ? "asc" : "desc";
 
   const response = await apiClient.get("/players/export", {
@@ -359,6 +379,8 @@ export async function exportPlayers(params: Record<string, unknown>): Promise<Bl
       playerId_op: toOptionalParam(str(params, "playerId_op")),
       phone: toOptionalParam(str(params, "phone")),
       phone_op: toOptionalParam(str(params, "phone_op")),
+      userType: toOptionalParam(str(params, "userType")),
+      userType_op: toOptionalParam(str(params, "userType_op")),
       exchangeName: toOptionalParam(str(params, "exchangeName")),
       exchangeName_op: toOptionalParam(str(params, "exchangeName_op")),
       exchangeId: toOptionalParam(str(params, "exchangeId")),

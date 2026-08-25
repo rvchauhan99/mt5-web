@@ -22,7 +22,7 @@ import {
   streamPlayerImportJobEvents,
 } from "@/services/playerService";
 import { formatImportErrorToast, getApiErrorMessage } from "@/lib/apiError";
-import type { PlayerImportJobSummary } from "@/types/player";
+import type { PlayerImportJobSummary, PlayerUserType } from "@/types/player";
 
 export function PlayerAddClient() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -33,16 +33,16 @@ export function PlayerAddClient() {
   const [exchangeId, setExchangeId] = useState("");
   const [playerId, setPlayerId] = useState("");
   const [phone, setPhone] = useState("");
-  const [regularBonusPct, setRegularBonusPct] = useState("0");
-  const [firstDepositBonusPct, setFirstDepositBonusPct] = useState("0");
+  const [email, setEmail] = useState("");
+  const [userType, setUserType] = useState<PlayerUserType>("trader");
   const [referredByPlayerId, setReferredByPlayerId] = useState("");
-  const [referralPercentage, setReferralPercentage] = useState("1");
+  const [referralPercentage, setReferralPercentage] = useState("0");
   const [manualErrors, setManualErrors] = useState<{
     exchangeId?: string;
     playerId?: string;
     phone?: string;
-    regularBonusPercentage?: string;
-    firstDepositBonusPercentage?: string;
+    email?: string;
+    userType?: string;
     referralPercentage?: string;
   }>({});
   const [manualLoading, setManualLoading] = useState(false);
@@ -74,16 +74,16 @@ export function PlayerAddClient() {
     setExchangeId("");
     setPlayerId("");
     setPhone("");
-    setRegularBonusPct("0");
-    setFirstDepositBonusPct("0");
+    setEmail("");
+    setUserType("trader");
     setReferredByPlayerId("");
-    setReferralPercentage("1");
+    setReferralPercentage("0");
     setManualErrors({});
   };
 
   const loadPlayerOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
-      const rows = await listPlayerLookupOptions({ q: query || undefined, limit: 25 });
+      const rows = await listPlayerLookupOptions({ q: query || undefined, limit: 10, userType: "ib" });
       return rows.map((player) => ({
         value: player.id,
         label: `${player.playerId} · ${player.phone} · ${player.exchangeName}`,
@@ -107,20 +107,14 @@ export function PlayerAddClient() {
   const onManualSave = async () => {
     const next: typeof manualErrors = {};
     if (!exchangeId.trim()) next.exchangeId = "Exchange is required.";
-    if (!playerId.trim()) next.playerId = "Player Id is required.";
+    if (!playerId.trim()) next.playerId = "Trader Id is required.";
     if (!phone.trim()) next.phone = "Phone number is required.";
-    const regularBonus = Number(regularBonusPct);
-    if (regularBonusPct.trim() === "" || Number.isNaN(regularBonus)) {
-      next.regularBonusPercentage = "Regular bonus percentage is required.";
-    } else if (regularBonus < 0 || regularBonus > 100) {
-      next.regularBonusPercentage = "Regular bonus percentage must be between 0 and 100.";
+    const emailTrim = email.trim();
+    if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      next.email = "Enter a valid email address.";
     }
-
-    const firstDepositBonus = Number(firstDepositBonusPct);
-    if (firstDepositBonusPct.trim() === "" || Number.isNaN(firstDepositBonus)) {
-      next.firstDepositBonusPercentage = "First deposit bonus percentage is required.";
-    } else if (firstDepositBonus < 0 || firstDepositBonus > 100) {
-      next.firstDepositBonusPercentage = "First deposit bonus percentage must be between 0 and 100.";
+    if (userType !== "trader" && userType !== "ib") {
+      next.userType = "User type is required.";
     }
     const referralPctNum = Number(referralPercentage);
     if (referralPercentage.trim() === "" || Number.isNaN(referralPctNum)) {
@@ -137,15 +131,17 @@ export function PlayerAddClient() {
         exchangeId: exchangeId.trim(),
         playerId: playerId.trim(),
         phone: phone.trim(),
-        regularBonusPercentage: regularBonus,
-        firstDepositBonusPercentage: firstDepositBonus,
+        email: email.trim() || null,
+        userType,
+        regularBonusPercentage: 0,
+        firstDepositBonusPercentage: 0,
         referredByPlayerId: referredByPlayerId || null,
         referralPercentage: referralPctNum,
       });
-      toast.success("Player saved successfully.");
+      toast.success("Trader saved successfully.");
       resetManual();
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to save player"));
+      toast.error(getApiErrorMessage(error, "Failed to save trader"));
     } finally {
       setManualLoading(false);
     }
@@ -170,8 +166,8 @@ export function PlayerAddClient() {
       if (!asyncImportEnabled) {
         const result = await importPlayers(bulkFile);
         const parts = [
-          `Created ${result.created} player${result.created === 1 ? "" : "s"}.`,
-          `Updated ${result.updated} player${result.updated === 1 ? "" : "s"}.`,
+          `Created ${result.created} trader${result.created === 1 ? "" : "s"}.`,
+          `Updated ${result.updated} trader${result.updated === 1 ? "" : "s"}.`,
         ];
         if (result.skipped > 0) {
           parts.push(`${result.skipped} empty row${result.skipped === 1 ? "" : "s"} skipped.`);
@@ -269,8 +265,8 @@ export function PlayerAddClient() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 pb-4">
       <FormContainer
-        title="Add Exchange Player"
-        description="Register a single player against an exchange."
+        title="Add Exchange Trader"
+        description="Register a single trader against an exchange."
         contentOverflow="visible"
         className="flex-none"
       >
@@ -286,7 +282,7 @@ export function PlayerAddClient() {
             <FieldError message={manualErrors.exchangeId} />
           </div>
           <div>
-            <FieldLabel>Player Id *</FieldLabel>
+            <FieldLabel>Trader Id *</FieldLabel>
             <Input placeholder="id" value={playerId} onChange={(e) => setPlayerId(e.target.value)} />
             <FieldError message={manualErrors.playerId} />
           </div>
@@ -300,51 +296,57 @@ export function PlayerAddClient() {
             <FieldError message={manualErrors.phone} />
           </div>
           <div>
-            <FieldLabel>Regular Bonus Percentage *</FieldLabel>
+            <FieldLabel>Email ID</FieldLabel>
             <Input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
-              placeholder="0"
-              value={regularBonusPct}
-              onChange={(e) => setRegularBonusPct(e.target.value)}
+              type="email"
+              placeholder="Email ID"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-label="Email ID"
             />
-            <FieldError message={manualErrors.regularBonusPercentage} />
+            <FieldError message={manualErrors.email} />
           </div>
           <div>
-            <FieldLabel>First Deposit Bonus Percentage *</FieldLabel>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
-              placeholder="0"
-              value={firstDepositBonusPct}
-              onChange={(e) => setFirstDepositBonusPct(e.target.value)}
-            />
-            <FieldError message={manualErrors.firstDepositBonusPercentage} />
+            <FieldLabel>User type *</FieldLabel>
+            <select
+              className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-sm"
+              value={userType}
+              onChange={(e) => setUserType(e.target.value === "ib" ? "ib" : "trader")}
+              aria-label="User type"
+            >
+              <option value="trader">Trader</option>
+              <option value="ib">IB</option>
+            </select>
+            <FieldError message={manualErrors.userType} />
           </div>
           <div>
-            <FieldLabel>Referred By (Old Player)</FieldLabel>
+            <FieldLabel>IB</FieldLabel>
             <AutocompleteField
               value={referredByPlayerId}
               onChange={setReferredByPlayerId}
               loadOptions={loadPlayerOptions}
               autoSelectSingleOption
-              placeholder="search old player..."
+              placeholder="search IB..."
             />
           </div>
           <div>
-            <FieldLabel>Referral Percentage *</FieldLabel>
+            <FieldLabel>Referral Percentage for IB *</FieldLabel>
             <Input
               type="number"
               min={0}
               max={100}
               step="0.01"
-              placeholder="1"
+              placeholder="0"
               value={referralPercentage}
-              onChange={(e) => setReferralPercentage(e.target.value)}
+              onChange={(e) => {
+                setReferralPercentage(e.target.value);
+                setManualErrors((prev) => {
+                  if (!prev.referralPercentage) return prev;
+                  const next = { ...prev };
+                  delete next.referralPercentage;
+                  return next;
+                });
+              }}
             />
             <FieldError message={manualErrors.referralPercentage} />
           </div>
@@ -372,12 +374,12 @@ export function PlayerAddClient() {
 
       <FormContainer
         title="Bulk upload"
-        description="Upload a CSV or Excel file. Each row must include exchange name, player id, phone, bonus_percentage (regular bonus), and first_deposit_bonus_percentage (0–100; leave empty for 0). Use the sample file as a template. If any row is invalid, nothing is imported."
+        description="Upload a CSV or Excel file. Each row must include exchange name, player id (trader id), and phone. Optional user_type is trader or ib (defaults to trader). Bonus percentage columns are optional and default to 0. Use the sample file as a template. If any row is invalid, nothing is imported."
         className="flex-none"
       >
         <div className="space-y-2">
           <div>
-            <FieldLabel>Player file (CSV or Excel) *</FieldLabel>
+            <FieldLabel>Trader file (CSV or Excel) *</FieldLabel>
             <input
               ref={fileInputRef}
               type="file"

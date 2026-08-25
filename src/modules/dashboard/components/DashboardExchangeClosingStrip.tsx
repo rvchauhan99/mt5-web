@@ -71,7 +71,7 @@ export function DashboardExchangeClosingStrip({ exchangesBreakdown, loading = fa
       {playerScoped ? (
         <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
           <IconInfoCircle className="h-3.5 w-3.5" />
-          Closing balances remain exchange-level even when a player filter is applied.
+          Closing balances remain exchange-level even when a trader filter is applied.
         </p>
       ) : null}
     </section>

@@ -79,7 +79,6 @@ export function WithdrawalFinalListClient() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [amendAmount, setAmendAmount] = useState("");
-  const [amendReverseBonus, setAmendReverseBonus] = useState("");
   const [amendRequestedAt, setAmendRequestedAt] = useState(currentDateTimeLocalValue());
   const [amendPayoutBankId, setAmendPayoutBankId] = useState("");
   const [amendPayoutBankDefault, setAmendPayoutBankDefault] = useState<AutocompleteOption | null>(null);
@@ -92,7 +91,6 @@ export function WithdrawalFinalListClient() {
   const [amendLoading, setAmendLoading] = useState(false);
   const [amendErrors, setAmendErrors] = useState<{
     amount?: string;
-    reverseBonus?: string;
     payoutBankId?: string;
     utr?: string;
     reason?: string;
@@ -194,7 +192,6 @@ export function WithdrawalFinalListClient() {
     const isLp = row.payoutSettlementType === "person";
     setAmendIsPersonPayout(isLp);
     setAmendAmount(String(row.amount));
-    setAmendReverseBonus(String(row.reverseBonus ?? 0));
     setAmendRequestedAt(utcIsoToDateTimeLocalValue(row.requestedAt));
     setAmendPayoutBankId(isLp ? "" : row.payoutBankId?.trim() || "");
     setAmendPayoutBankDefault(
@@ -220,19 +217,13 @@ export function WithdrawalFinalListClient() {
     if (!selectedWithdrawal) return;
     const next: typeof amendErrors = {};
     const amountNum = Number(amendAmount);
-    const reverseBonusNum = Number(amendReverseBonus);
     if (!Number.isFinite(amountNum) || amountNum < 0) {
       next.amount = "Amount must be a whole number ≥ 0.";
     } else if (!Number.isInteger(amountNum)) {
       next.amount = "Amount must be a whole number (no decimals).";
     }
-    if (!Number.isFinite(reverseBonusNum) || reverseBonusNum < 0) {
-      next.reverseBonus = "Reverse bonus must be a number >= 0.";
-    } else if (!Number.isInteger(reverseBonusNum)) {
-      next.reverseBonus = "Reverse bonus must be a whole number (no decimals).";
-    }
     if (!amendIsPersonPayout && !amendPayoutBankId.trim()) next.payoutBankId = "Payout bank is required.";
-    if (!amendUtr.trim()) next.utr = "UTR is required.";
+    if (!amendUtr.trim()) next.utr = "Reference number is required.";
     if (!amendReasonId.trim()) next.reason = "Reason selection is required.";
     if (Object.keys(next).length) {
       setAmendErrors(next);
@@ -242,7 +233,7 @@ export function WithdrawalFinalListClient() {
     try {
       const amendBody = {
         amount: amountNum,
-        reverseBonus: reverseBonusNum,
+        reverseBonus: 0,
         utr: amendUtr.trim(),
         requestedAt: amendRequestedAt || undefined,
         reasonId: amendReasonId.trim(),
@@ -266,7 +257,6 @@ export function WithdrawalFinalListClient() {
   }, [
     selectedWithdrawal,
     amendAmount,
-    amendReverseBonus,
     amendRequestedAt,
     amendPayoutBankId,
     amendUtr,
@@ -295,7 +285,7 @@ export function WithdrawalFinalListClient() {
     () => [
       {
         field: "playerName",
-        label: "Player",
+        label: "Trader",
         render: (row: WithdrawalRow) => row.playerName,
         ...tableColumnPresets.nameCol,
         sortable: true,
@@ -326,7 +316,7 @@ export function WithdrawalFinalListClient() {
       },
       {
         field: "utr",
-        label: "UTR",
+        label: "Reference Number",
         sortable: true,
         render: (row: WithdrawalRow) => row.utr || "—",
       },
@@ -334,12 +324,6 @@ export function WithdrawalFinalListClient() {
         field: "amount",
         label: "Requested",
         render: (row: WithdrawalRow) => formatWholeMoney(row.amount),
-        sortable: true,
-      },
-      {
-        field: "reverseBonus",
-        label: "Reverse Bonus",
-        render: (row: WithdrawalRow) => (row.reverseBonus != null ? formatWholeMoney(row.reverseBonus) : "—"),
         sortable: true,
       },
       {
@@ -452,7 +436,7 @@ export function WithdrawalFinalListClient() {
       <DetailsSidebar
         open={Boolean(selectedWithdrawal)}
         title="Withdrawal details"
-        subtitle={selectedWithdrawal ? `UTR ${selectedWithdrawal.utr || "—"}` : undefined}
+        subtitle={selectedWithdrawal ? `Reference Number ${selectedWithdrawal.utr || "—"}` : undefined}
         onClose={() => setSelectedWithdrawal(null)}
         width="min(480px, 100vw)"
       >
@@ -465,7 +449,7 @@ export function WithdrawalFinalListClient() {
               </div>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-500">Player</dt>
+                  <dt className="text-gray-500">Trader</dt>
                   <dd className="text-right font-medium">{selectedWithdrawal.playerName || "—"}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
@@ -485,10 +469,9 @@ export function WithdrawalFinalListClient() {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-500">Amount / reverse / payable</dt>
+                  <dt className="text-gray-500">Amount / payable</dt>
                   <dd className="text-right font-medium">
                     {formatWholeMoney(selectedWithdrawal.amount)} /{" "}
-                    {formatWholeMoney(selectedWithdrawal.reverseBonus ?? 0)} /{" "}
                     {formatWholeMoney(selectedWithdrawal.payableAmount ?? 0)}
                   </dd>
                 </div>
@@ -572,7 +555,7 @@ export function WithdrawalFinalListClient() {
       <Dialog open={amendOpen} title="Amend approved withdrawal" onClose={() => !amendLoading && setAmendOpen(false)}>
         <p className="mb-3 text-sm text-gray-600">
           {amendIsPersonPayout
-            ? "Company bank balances are unchanged for liability-person payouts. The payable liability line may refresh when payable amount, UTR, or requested time change. Amendments are recorded in history and audit logs."
+            ? "Company bank balances are unchanged for liability-person payouts. The payable liability line may refresh when payable amount, Reference Number, or requested time change. Amendments are recorded in history and audit logs."
             : "Changes update settlement balances and are recorded in amendment history and audit logs."}
         </p>
         <FormGrid>
@@ -588,18 +571,6 @@ export function WithdrawalFinalListClient() {
             />
             <p className="mt-1 text-xs text-gray-500">Use 0 when the bank transaction was fully refunded.</p>
             <FieldError message={amendErrors.amount} />
-          </div>
-          <div>
-            <FieldLabel>Reverse bonus</FieldLabel>
-            <Input
-              className="h-9"
-              type="number"
-              min={0}
-              step="1"
-              value={amendReverseBonus}
-              onChange={(e) => setAmendReverseBonus(e.target.value)}
-            />
-            <FieldError message={amendErrors.reverseBonus} />
           </div>
           <div className="sm:col-span-2">
             <FieldLabel>Requested date & time</FieldLabel>
@@ -633,7 +604,7 @@ export function WithdrawalFinalListClient() {
             </div>
           )}
           <div className="sm:col-span-2">
-            <FieldLabel>UTR</FieldLabel>
+            <FieldLabel>Reference Number</FieldLabel>
             <Input className="h-9" value={amendUtr} onChange={(e) => setAmendUtr(e.target.value)} />
             <FieldError message={amendErrors.utr} />
           </div>
@@ -673,10 +644,10 @@ export function WithdrawalFinalListClient() {
           This will permanently delete the withdrawal and reverse impacted balances based on current status.
         </p>
         <div className="space-y-1 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-gray-700">
-          <div><span className="font-medium">UTR:</span> {selectedWithdrawal?.utr || "—"}</div>
+          <div><span className="font-medium">Reference Number:</span> {selectedWithdrawal?.utr || "—"}</div>
           <div><span className="font-medium">Status:</span> {selectedWithdrawal?.status || "—"}</div>
           <div><span className="font-medium">Amount:</span> {selectedWithdrawal?.amount != null ? formatWholeMoney(selectedWithdrawal.amount) : "—"}</div>
-          <div><span className="font-medium">Player:</span> {selectedWithdrawal?.playerName || "—"}</div>
+          <div><span className="font-medium">Trader:</span> {selectedWithdrawal?.playerName || "—"}</div>
           <div>
             <span className="font-medium">Payout settlement:</span>{" "}
             {selectedWithdrawal?.payoutSettlementType === "person" ? "Liability person" : "Company bank"}

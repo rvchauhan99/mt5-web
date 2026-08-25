@@ -140,7 +140,7 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
         bankName: r.bankName,
         ifsc: r.ifsc,
         amount: r.amount,
-        reverseBonus: r.reverseBonus,
+        reverseBonus: 0,
         requestedAt: r.requestedAt,
         payoutUtr: r.payoutUtr,
         payoutSettlementType: r.payoutSettlementType,
@@ -212,7 +212,7 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
 
   function handleDownloadErrors(invalidRows: WithdrawalImportInvalidRow[]) {
     const header =
-      "Row,Date Time,Player Id,Account Number,Account Holder Name,Bank Name,IFSC,Amount,Reverse Bonus,Payout UTR,Payout Settlement Type,Payout Bank,Payout Liable Person Name,Error";
+      "Row,Date Time,Trader Id,Account Number,Account Holder Name,Bank Name,IFSC,Amount,Payout Reference Number,Payout Settlement Type,Payout Bank,Payout Liable Person Name,Error";
     const lines = [header];
     for (const r of invalidRows) {
       lines.push(
@@ -225,7 +225,6 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
           csvQuote(r.bankName),
           csvQuote(r.ifsc),
           csvQuote(r.amount),
-          csvQuote(r.reverseBonus),
           csvQuote(r.payoutUtr),
           csvQuote(r.payoutSettlementType),
           csvQuote(r.payoutBank),
@@ -400,11 +399,10 @@ function UploadStep({
         <p className="text-sm font-medium text-gray-700 mb-2">Column guide:</p>
         <div className="text-xs text-gray-600 space-y-1">
           <p><span className="font-medium">Date Time</span> — Requested datetime (optional, defaults to current)</p>
-          <p><span className="font-medium">Player Id</span> — Required exchange player code</p>
+          <p><span className="font-medium">Trader Id</span> — Required exchange trader code</p>
           <p><span className="font-medium">Account Number / Holder Name / Bank Name / IFSC</span> — Required beneficiary details. Account Number must be full digits (text), not scientific notation (E+).</p>
           <p><span className="font-medium">Amount</span> — Required whole number, min 1</p>
-          <p><span className="font-medium">Reverse Bonus</span> — Optional whole number, min 0 (defaults to 0)</p>
-          <p><span className="font-medium">Payout UTR</span> — Optional; required with payout bank/person for banker bulk approve</p>
+          <p><span className="font-medium">Payout Reference Number</span> — Optional; required with payout bank/person for banker bulk approve</p>
           <p><span className="font-medium">Payout Settlement Type</span> — Bank or Person (optional, defaults to Bank)</p>
           <p><span className="font-medium">Payout Bank</span> — Company bank account no. or holder name (when settlement is Bank). If using account number, enter full digits (no E+ format).</p>
           <p><span className="font-medium">Payout Liable Person Name</span> — Required when payout settlement is Person</p>
@@ -457,9 +455,9 @@ function ReviewStep({
               <thead className="sticky top-0 bg-red-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Row</th>
-                  <th className="px-3 py-2 text-left font-medium text-red-800">Player Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Trader Id</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Amount</th>
-                  <th className="px-3 py-2 text-left font-medium text-red-800">Payout UTR</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Payout Reference Number</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Error</th>
                 </tr>
               </thead>
@@ -494,10 +492,10 @@ function ReviewStep({
               <thead className="sticky top-0 bg-green-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Row</th>
-                  <th className="px-3 py-2 text-left font-medium text-green-800">Player Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Trader Id</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Amount</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Payable</th>
-                  <th className="px-3 py-2 text-left font-medium text-green-800">Payout UTR</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Payout Reference Number</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-100">
@@ -568,7 +566,7 @@ function ResultContent({ result }: { result: { created: number; errors: Array<{ 
               Successfully imported {result.created} withdrawal request{result.created !== 1 ? "s" : ""}
             </p>
             <p className="mt-1 text-sm text-green-600">
-              Records are &quot;Requested&quot; and appear on the banker queue. Rows with payout UTR + bank can be bulk-approved.
+              Records are &quot;Requested&quot; and appear on the banker queue. Rows with payout Reference Number + bank can be bulk-approved.
             </p>
           </div>
         </div>
@@ -587,7 +585,7 @@ function ResultContent({ result }: { result: { created: number; errors: Array<{ 
               <thead className="sticky top-0 bg-amber-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-amber-800">#</th>
-                  <th className="px-3 py-2 text-left font-medium text-amber-800">UTR</th>
+                  <th className="px-3 py-2 text-left font-medium text-amber-800">Reference Number</th>
                   <th className="px-3 py-2 text-left font-medium text-amber-800">Error</th>
                 </tr>
               </thead>

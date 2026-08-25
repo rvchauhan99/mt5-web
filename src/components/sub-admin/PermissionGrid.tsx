@@ -24,6 +24,14 @@ const LIABILITY_ENTRY_KEYS = ["liability.entry_add", "liability.entry_list"] as 
 const LIABILITY_LEDGER_KEY = "liability.ledger_view";
 const LIABILITY_REPORT_KEY = "liability.report_view";
 
+const MODULE_DISPLAY_LABELS: Record<string, string> = {
+  player: "Trader/IB",
+};
+
+function formatModuleLabel(module: string): string {
+  return MODULE_DISPLAY_LABELS[module] ?? module.replace(/_/g, " ");
+}
+
 function preprocessPermissionsForGrid(allPermissions: Permission[]): PermissionGridRow[] {
   const rows: PermissionGridRow[] = [];
   const byKey = new Map(allPermissions.map((p) => [p.key, p]));
@@ -231,7 +239,7 @@ export function PermissionGrid({
             )}>
               <div className={cn("flex items-center justify-between border-b border-gray-100", isCompact ? "mb-2.5 pb-2" : "mb-4 pb-3")}>
                 <h4 className="font-bold text-gray-800 uppercase tracking-tighter text-xs">
-                  {module.replace(/_/g, " ")}
+                  {formatModuleLabel(module)}
                 </h4>
                 <Checkbox
                   checked={fullySelected}
@@ -240,7 +248,7 @@ export function PermissionGrid({
                   className={cn(partiallySelected && "opacity-70")}
                   onChange={(e) => toggleModule(module, e.target.checked)}
                   disabled={disabled}
-                  title={`Toggle all ${module} permissions`}
+                  title={`Toggle all ${formatModuleLabel(module)} permissions`}
                 />
               </div>
               <div className={cn("grid grid-cols-1 flex-grow", isCompact ? "gap-2" : "gap-3")}>

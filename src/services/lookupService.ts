@@ -49,20 +49,25 @@ type LookupListParams = {
   limit?: number;
   /** Exact expense type id (24-char hex); resolves audit flags outside list pagination. */
   id?: string;
+  /** Player lookup only; restrict results to trader or ib. */
+  userType?: "trader" | "ib";
 };
 
 type NormalizedLookupQuery = {
   q: string;
   limit: number;
   id?: string;
+  userType?: "trader" | "ib";
 };
 
 function normalizeQueryParams(params?: LookupListParams): NormalizedLookupQuery {
   const idTrim = params?.id?.trim();
+  const userType = params?.userType === "trader" || params?.userType === "ib" ? params.userType : undefined;
   return {
     q: params?.q?.trim() || "",
     limit: Number(params?.limit) > 0 ? Number(params?.limit) : 20,
     ...(idTrim && /^[a-f0-9]{24}$/i.test(idTrim) ? { id: idTrim } : {}),
+    ...(userType ? { userType } : {}),
   };
 }
 
@@ -94,7 +99,11 @@ export async function listExpenseTypeLookupOptions(
 export async function listPlayerLookupOptions(params?: LookupListParams): Promise<LookupPlayerOption[]> {
   const query = normalizeQueryParams(params);
   const res = await apiClient.get<{ success: boolean; data: LookupPlayerOption[] }>("/lookup/players", {
-    params: { q: query.q || undefined, limit: query.limit },
+    params: {
+      q: query.q || undefined,
+      limit: query.limit,
+      ...(query.userType ? { userType: query.userType } : {}),
+    },
   });
   return Array.isArray(res.data?.data) ? res.data.data : [];
 }

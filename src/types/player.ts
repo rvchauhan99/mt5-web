@@ -1,9 +1,13 @@
+export type PlayerUserType = "trader" | "ib";
+
 export type PlayerRow = {
   _id: string;
   id?: string;
   exchange: string | { _id?: string; name?: string; provider?: string };
   playerId: string;
   phone: string;
+  email?: string;
+  userType: PlayerUserType;
   regularBonusPercentage: number;
   firstDepositBonusPercentage: number;
   referredByPlayerId?: string | { _id?: string; playerId?: string; phone?: string };
@@ -20,6 +24,8 @@ export type PlayerCreateInput = {
   exchangeId: string;
   playerId: string;
   phone: string;
+  email?: string | null;
+  userType: PlayerUserType;
   regularBonusPercentage: number;
   firstDepositBonusPercentage: number;
   referredByPlayerId?: string | null;
@@ -28,6 +34,8 @@ export type PlayerCreateInput = {
 
 export type PlayerUpdateInput = {
   phone: string;
+  email?: string | null;
+  userType: PlayerUserType;
   regularBonusPercentage: number;
   firstDepositBonusPercentage: number;
   referredByPlayerId?: string | null;
@@ -39,6 +47,8 @@ export type PlayerDetail = Pick<
   | "exchange"
   | "playerId"
   | "phone"
+  | "email"
+  | "userType"
   | "regularBonusPercentage"
   | "firstDepositBonusPercentage"
   | "referredByPlayerId"
@@ -76,6 +86,7 @@ export type PlayerImportJobSummary = {
       exchange_name: string;
       player_id: string;
       phone: string;
+      user_type?: string;
       bonus_percentage: string;
       first_deposit_bonus_percentage: string;
     };

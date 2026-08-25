@@ -166,7 +166,7 @@ export function ExchangeStatementClient() {
             />
           </div>
           <div className="min-w-[260px] flex-1 space-y-1.5">
-            <FieldLabel>Player (Optional)</FieldLabel>
+            <FieldLabel>Trader (Optional)</FieldLabel>
             <AutocompleteField
               value={playerId}
               onChange={(value) => {
@@ -175,7 +175,7 @@ export function ExchangeStatementClient() {
               }}
               loadOptions={loadPlayerOptions}
               autoSelectSingleOption
-              placeholder={exchangeId ? "Search player..." : "Select exchange first"}
+              placeholder={exchangeId ? "Search trader..." : "Select exchange first"}
             />
           </div>
         </div>
@@ -346,7 +346,7 @@ export function ExchangeStatementClient() {
                 <tr>
                   <th className="py-3 px-4 w-[160px]">Date & Time</th>
                   <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4 w-[180px]">Player / Ref</th>
+                  <th className="py-3 px-4 w-[180px]">Trader / Ref</th>
                   <th className="py-3 px-4 text-right w-[120px]">Credit (CR)</th>
                   <th className="py-3 px-4 text-right w-[120px]">Debit (DR)</th>
                   <th className="py-3 px-4 text-right w-[140px] bg-slate-100/50 border-l border-slate-200">Balance</th>
@@ -367,7 +367,7 @@ export function ExchangeStatementClient() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-medium text-slate-800">{row.label}</div>
-                        {row.utr ? <div className="text-[10px] text-slate-400 font-mono mt-0.5">UTR: {row.utr}</div> : null}
+                        {row.utr ? <div className="text-[10px] text-slate-400 font-mono mt-0.5">Reference Number: {row.utr}</div> : null}
                         {row.remark ? <div className="text-[10px] text-slate-500 mt-0.5">Remark: {row.remark}</div> : null}
                         {row.bonusMemo && row.bonusMemo > 0 ? (
                           <div className="mt-1 text-[10px] text-amber-600 italic bg-amber-50 px-1.5 py-0.5 rounded inline-block">

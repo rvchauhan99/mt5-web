@@ -262,7 +262,7 @@ export async function listWithdrawalsNormalized(
       total: Number(meta?.total ?? 0),
       page: Number(meta?.page ?? page),
       pageSize: Number(meta?.pageSize ?? limit),
-      ...(view === "banker" ? { lastBankerPayout } : {}),
+      ...(view === "banker" || view === "exchange" ? { lastBankerPayout } : {}),
     },
   };
 }

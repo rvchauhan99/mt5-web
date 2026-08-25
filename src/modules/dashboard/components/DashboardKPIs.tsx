@@ -11,9 +11,18 @@ import {
   IconUsers,
   IconDatabase,
   IconClock,
+  IconPercentage,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/cn";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+
+export type DashboardIbTopPerformer = {
+  referrerPlayerId: string;
+  playerId: string;
+  phone: string;
+  totalAmount: number;
+  count: number;
+};
 
 export type DashboardSummary = {
   deposit: {
@@ -42,6 +51,13 @@ export type DashboardSummary = {
     pendingCount: number;
     approvedAmount: number;
   };
+  ibCommission: {
+    totalAmount: number;
+    totalCount: number;
+    accruedAmount: number;
+    settledAmount: number;
+  };
+  ibTopPerformers: DashboardIbTopPerformer[];
   pnl: {
     gross: number;
     net: number;
@@ -189,12 +205,13 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
   const d = summary?.deposit;
   const w = summary?.withdrawal;
   const e = summary?.expense;
+  const ib = summary?.ibCommission;
   const ex = summary?.exchanges;
   const us = summary?.users;
   const pm = summary?.periodMetrics;
   const netBonus = (d?.bonusTotal ?? 0) - (w?.reverseBonusTotal ?? 0);
   const grossPL = (d?.totalAmount ?? 0) - (w?.totalAmount ?? 0) - netBonus;
-  const netPL = grossPL - (e?.approvedAmount ?? 0);
+  const netPL = grossPL - (e?.approvedAmount ?? 0) - (ib?.totalAmount ?? 0);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -294,12 +311,29 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
         }
       />
 
-      {/* 6. Net P&L */}
+      {/* 6. IB Commission */}
+      <KPICard
+        loading={loading}
+        title="IB Commission"
+        value={fmt(ib?.totalAmount ?? 0)}
+        subtitle={`${formatCount(ib?.totalCount ?? 0)} accruals (accrued + settled)`}
+        icon={<IconPercentage className="w-5 h-5 text-teal-600" />}
+        iconBg="bg-teal-50"
+        valueColor="text-teal-700"
+        footer={
+          <div className="flex items-center justify-between">
+            <span>Accrued: <strong className="text-slate-600">{fmt(ib?.accruedAmount ?? 0)}</strong></span>
+            <span>Settled: <strong className="text-slate-600">{fmt(ib?.settledAmount ?? 0)}</strong></span>
+          </div>
+        }
+      />
+
+      {/* 7. Net P&L */}
       <KPICard
         loading={loading}
         title="Net P & L"
         value={fmt(netPL)}
-        subtitle="Gross P&L − Approved Expenses"
+        subtitle="Gross − Expenses − IB Commission"
         icon={
           netPL >= 0
             ? <IconTrendingUp className="w-5 h-5 text-blue-600" />
@@ -309,7 +343,7 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
         valueColor={netPL >= 0 ? "text-blue-700" : "text-rose-700"}
       />
 
-      {/* 7. Active Exchanges */}
+      {/* 8. Active Exchanges */}
       <KPICard
         loading={loading}
         title="Active Exchanges"
@@ -335,7 +369,7 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
         }
       />
 
-      {/* 8. Active Users */}
+      {/* 9. Active Users */}
       <KPICard
         loading={loading}
         title="Active Users"
@@ -346,10 +380,10 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
         valueColor="text-sky-700"
       />
 
-      {/* 9. New Players */}
+      {/* 10. New Traders */}
       <KPICard
         loading={loading}
-        title="New Players"
+        title="New Traders"
         value={formatCount(pm?.newPlayers ?? 0)}
         subtitle="Selected period"
         icon={<IconUsers className="w-5 h-5 text-indigo-600" />}
@@ -357,7 +391,7 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
         valueColor="text-indigo-700"
       />
 
-      {/* 10. First-Time Deposit */}
+      {/* 11. First-Time Deposit */}
       <KPICard
         loading={loading}
         title="First-Time Deposit"

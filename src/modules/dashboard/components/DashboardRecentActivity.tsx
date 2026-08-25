@@ -94,7 +94,7 @@ export function DashboardRecentActivity({ items, loading }: Props) {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-100">
-                {["Type", "Player / UTR", "Bank", "Amount", "Status", "Time", "By"].map((h) => (
+                {["Type", "Trader / Reference Number", "Bank", "Amount", "Status", "Time", "By"].map((h) => (
                   <th
                     key={h}
                     className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-50/50 first:rounded-none whitespace-nowrap"
@@ -127,13 +127,13 @@ export function DashboardRecentActivity({ items, loading }: Props) {
                       </div>
                     </td>
 
-                    {/* Player / UTR */}
+                    {/* Trader / Reference Number */}
                     <td className="px-4 py-2.5">
                       <p className="font-medium text-slate-700 truncate max-w-[120px]">
                         {item.playerName || "—"}
                       </p>
                       <p className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">
-                        UTR: {item.utr || "—"}
+                        Reference Number: {item.utr || "—"}
                       </p>
                     </td>
 

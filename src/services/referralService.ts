@@ -1,5 +1,10 @@
 import { apiClient } from "@/services/apiClient";
-import type { ReferralAccrualRow, ReferralAccrualStatus } from "@/types/referral";
+import type {
+  ReferralAccrualRow,
+  ReferralAccrualStatus,
+  SettleReferralAccrualsInput,
+  SettleReferralAccrualsResult,
+} from "@/types/referral";
 
 type ListReferralAccrualParams = {
   page?: number;
@@ -37,13 +42,23 @@ export async function listReferralAccruals(params: ListReferralAccrualParams): P
   };
 }
 
-export async function settleReferralAccruals(input: {
-  accrualIds: string[];
-  remark?: string;
-}): Promise<{ settlementDepositId: string; settledAccrualCount: number; totalAmount: number }> {
+export async function settleReferralAccruals(
+  input: SettleReferralAccrualsInput,
+): Promise<SettleReferralAccrualsResult> {
   const response = await apiClient.post<{
     success: boolean;
-    data: { settlementDepositId: string; settledAccrualCount: number; totalAmount: number };
+    data: SettleReferralAccrualsResult;
   }>("/referral/settle", input);
+  return response.data.data;
+}
+
+export async function updateReferralAccrual(
+  id: string,
+  input: { referralPercentage?: number; accruedAmount?: number },
+): Promise<ReferralAccrualRow> {
+  const response = await apiClient.patch<{ success: boolean; data: ReferralAccrualRow }>(
+    `/referral/accruals/${encodeURIComponent(id)}`,
+    input,
+  );
   return response.data.data;
 }

@@ -44,7 +44,11 @@ export function filterNavByPermissions(
       if (children.length === 0 && !node.href) continue;
       out.push({ ...node, children });
     } else {
-      if (node.requiredPermission && !perms.includes(node.requiredPermission)) {
+      if (node.requiredAnyPermissions?.length) {
+        if (!node.requiredAnyPermissions.some((p) => perms.includes(p))) {
+          continue;
+        }
+      } else if (node.requiredPermission && !perms.includes(node.requiredPermission)) {
         continue;
       }
       out.push({ ...node });
@@ -133,7 +137,7 @@ export const NAV_ITEMS: AppNavNode[] = [
   },
   {
     id: "player",
-    label: "Player",
+    label: "Trader/IB",
     children: [
       {
         id: "player-add",
@@ -186,55 +190,35 @@ export const NAV_ITEMS: AppNavNode[] = [
     ],
   },
   {
-    id: "deposit",
-    label: "Deposit",
+    id: "agent",
+    label: "Agent",
     children: [
       {
-        id: "deposit-banker",
-        label: "Banker",
-        href: "/deposit/banker",
-        keywords: ["banker deposit", "create"],
-        requiredPermission: NAV_PERMISSIONS.DEPOSIT_BANKER,
-      },
-      {
-        id: "deposit-exchange",
-        label: "Exchange",
+        id: "agent-deposit",
+        label: "Deposit",
         href: "/deposit/exchange",
-        keywords: ["depositor"],
-        requiredPermission: NAV_PERMISSIONS.DEPOSIT_EXCHANGE,
+        keywords: ["depositor", "banker deposit", "create", "verify"],
+        requiredAnyPermissions: [NAV_PERMISSIONS.DEPOSIT_EXCHANGE, NAV_PERMISSIONS.DEPOSIT_BANKER],
       },
       {
-        id: "deposit-final-view",
-        label: "Final view",
+        id: "agent-deposit-final",
+        label: "Final deposit list",
         href: "/deposit/final-list",
-        keywords: ["finalize", "view"],
+        keywords: ["finalize", "view", "deposit"],
         requiredPermission: NAV_PERMISSIONS.DEPOSIT_FINAL_VIEW,
       },
-    ],
-  },
-  {
-    id: "withdrawal",
-    label: "Withdrawal",
-    children: [
       {
-        id: "withdrawal-exchange",
-        label: "Exchange",
+        id: "agent-withdrawals",
+        label: "Withdrawals",
         href: "/withdrawal/exchange",
-        keywords: ["request", "create"],
-        requiredPermission: NAV_PERMISSIONS.WITHDRAWAL_EXCHANGE,
+        keywords: ["request", "create", "payout", "approve"],
+        requiredAnyPermissions: [NAV_PERMISSIONS.WITHDRAWAL_EXCHANGE, NAV_PERMISSIONS.WITHDRAWAL_BANKER],
       },
       {
-        id: "withdrawal-banker",
-        label: "Banker",
-        href: "/withdrawal/banker",
-        keywords: ["payout", "listing"],
-        requiredPermission: NAV_PERMISSIONS.WITHDRAWAL_BANKER,
-      },
-      {
-        id: "withdrawal-final-view",
-        label: "Final",
+        id: "agent-withdrawal-final",
+        label: "Final withdrawal list",
         href: "/withdrawal/final-list",
-        keywords: ["approve", "view", "finalize"],
+        keywords: ["approve", "view", "finalize", "withdrawal"],
         requiredPermission: NAV_PERMISSIONS.WITHDRAWAL_FINAL_VIEW,
       },
     ],
@@ -295,7 +279,7 @@ export const NAV_ITEMS: AppNavNode[] = [
   },
   {
     id: "referral",
-    label: "Referral",
+    label: "IB Referral",
     children: [
       {
         id: "referral-settlement",

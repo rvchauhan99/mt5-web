@@ -67,14 +67,14 @@ const HAS_AMENDMENT_OPTIONS = [
 
 const CHIP_LABELS: Partial<Record<DepositFinalFilterKey | "q", string>> = {
   q: "Search",
-  utr: "UTR",
+  utr: "Reference Number",
   bankName: "Bank name",
   bankId: "Bank account",
   status: "Status",
   hasAmendment: "Amendments",
   amount: "Amount",
   totalAmount: "Total",
-  player: "Player",
+  player: "Trader",
   createdBy: "Created by",
   createdAt_from: "Transaction date",
 };
@@ -340,7 +340,7 @@ export function DepositFinalListFilterPanel({
           />
           <Input
             type="text"
-            placeholder="Quick search (UTR, bank label)"
+            placeholder="Quick search (Reference Number, bank label)"
             className="h-10 border-[var(--border)] pl-9 pr-8 text-sm"
             value={quickSearch}
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleQuickSearchChange(e.target.value)}
@@ -369,10 +369,10 @@ export function DepositFinalListFilterPanel({
       {open && (
         <div className="mt-3 grid grid-cols-1 gap-3 border-t border-[var(--border)] pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-600">UTR (contains)</Label>
+            <Label className="text-xs text-slate-600">Reference Number (contains)</Label>
             <Input
               className="h-9 w-full text-sm"
-              placeholder="UTR"
+              placeholder="Reference Number"
               value={local.utr}
               onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange("utr", e.target.value)}
             />
@@ -494,14 +494,14 @@ export function DepositFinalListFilterPanel({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-600">Player</Label>
+            <Label className="text-xs text-slate-600">Trader</Label>
             <AutocompleteField
               value={local.player}
               onChange={(v) => handleChange("player", v)}
               loadOptions={loadPlayerOptions}
               autoSelectSingleOption
-              placeholder="Search player…"
-              emptyText="No players found"
+              placeholder="Search trader…"
+              emptyText="No traders found"
             />
           </div>
 

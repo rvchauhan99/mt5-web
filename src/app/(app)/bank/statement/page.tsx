@@ -34,7 +34,7 @@ import {
   formatDateTimeForUser,
 } from "@/lib/userTimezone";
 
-const ENTRY_TYPES = ["all", "deposit", "withdrawal", "expense", "liability", "settlement"] as const;
+const ENTRY_TYPES = ["all", "deposit", "withdrawal", "expense", "liability", "settlement", "referral"] as const;
 type EntryTypeFilter = (typeof ENTRY_TYPES)[number];
 
 export default function BankStatementPage() {
@@ -470,7 +470,7 @@ export default function BankStatementPage() {
                 <tr>
                   <th className="py-3 px-4 w-[160px]">Date & Time</th>
                   <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4 w-[160px]">Player / Ref</th>
+                  <th className="py-3 px-4 w-[160px]">Trader / Ref</th>
                   <th className="py-3 px-4 text-right w-[120px]">Credit (CR)</th>
                   <th className="py-3 px-4 text-right w-[120px]">Debit (DR)</th>
                   <th className="py-3 px-4 text-right w-[140px] bg-slate-100/50 border-l border-slate-200 text-slate-800">Balance</th>
@@ -493,6 +493,7 @@ export default function BankStatementPage() {
                         r.kind === "withdrawal" && "bg-rose-50/10",
                         r.kind === "settlement" && "bg-amber-50/20",
                         r.kind === "liability" && "bg-slate-50/40",
+                        r.kind === "referral" && "bg-sky-50/40",
                       )}
                     >
                       <td className="py-3 px-4 whitespace-nowrap text-slate-500">
@@ -500,7 +501,7 @@ export default function BankStatementPage() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-medium text-slate-800">{r.label}</div>
-                        {r.utr && <div className="text-[10px] text-slate-400 font-mono mt-0.5">UTR: {r.utr}</div>}
+                        {r.utr && <div className="text-[10px] text-slate-400 font-mono mt-0.5">Reference Number: {r.utr}</div>}
                         {r.bonusMemo && r.bonusMemo > 0 && (r.kind === "deposit" || r.kind === "withdrawal") && (
                           <div className="mt-1 text-[10px] text-amber-600 italic bg-amber-50 px-1.5 py-0.5 rounded inline-block">
                             * Memo: {formatAmount(r.bonusMemo)} bonus {r.kind === "deposit" ? "given" : "reversed"} (Not in bank)
@@ -508,6 +509,9 @@ export default function BankStatementPage() {
                         )}
                       </td>
                       <td className="py-3 px-4">
+                        {r.kind === "referral" && !r.playerName && (
+                          <div className="font-medium text-sky-800">IB settle</div>
+                        )}
                         {r.playerName && <div className="font-medium text-slate-700 truncate max-w-[140px]" title={r.playerName}>{r.playerName}</div>}
                         {r.createdByName && <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[140px]">By: {r.createdByName}</div>}
                       </td>

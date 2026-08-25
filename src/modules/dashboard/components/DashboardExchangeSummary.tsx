@@ -117,9 +117,9 @@ export function DashboardExchangeSummary({ exchangesBreakdown, loading = false }
                 </div>
               </div>
 
-              {/* New Players */}
+              {/* New Traders */}
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">New Players</p>
+                <p className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">New Traders</p>
                 <p className="text-base font-bold text-indigo-700">{ex.newPlayers.toLocaleString("en-IN")}</p>
                 <div className="flex items-center text-[10px] text-indigo-600">
                   <IconUsers className="w-3 h-3 mr-0.5" />

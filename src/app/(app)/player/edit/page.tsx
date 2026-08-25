@@ -3,7 +3,7 @@ import { PlayerEditClient } from "@/modules/player/components/PlayerEditClient";
 
 export default function PlayerEditPage() {
   return (
-    <ListingPageContainer title="Player / Edit" fullWidth>
+    <ListingPageContainer title="Trader / Edit" fullWidth>
       <PlayerEditClient />
     </ListingPageContainer>
   );

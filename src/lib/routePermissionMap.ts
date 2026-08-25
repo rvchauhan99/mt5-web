@@ -26,19 +26,31 @@ const PREFIX_RULES: { prefix: string; access: RouteAccess }[] = [
   { prefix: "/bank/add", access: { kind: "permission", permission: NAV_PERMISSIONS.BANK_ADD } },
   { prefix: "/bank/list", access: { kind: "permission", permission: NAV_PERMISSIONS.BANK_LIST } },
   { prefix: "/bank/statement", access: { kind: "permission", permission: NAV_PERMISSIONS.BANK_STATEMENT } },
-  { prefix: "/deposit/banker", access: { kind: "permission", permission: NAV_PERMISSIONS.DEPOSIT_BANKER } },
-  { prefix: "/deposit/exchange", access: { kind: "permission", permission: NAV_PERMISSIONS.DEPOSIT_EXCHANGE } },
+  { prefix: "/deposit/banker", access: { kind: "anyPermission", permissions: [NAV_PERMISSIONS.DEPOSIT_EXCHANGE, NAV_PERMISSIONS.DEPOSIT_BANKER] } },
+  {
+    prefix: "/deposit/exchange",
+    access: {
+      kind: "anyPermission",
+      permissions: [NAV_PERMISSIONS.DEPOSIT_EXCHANGE, NAV_PERMISSIONS.DEPOSIT_BANKER],
+    },
+  },
   {
     prefix: "/deposit/final-list",
     access: { kind: "permission", permission: NAV_PERMISSIONS.DEPOSIT_FINAL_VIEW },
   },
   {
     prefix: "/withdrawal/exchange",
-    access: { kind: "permission", permission: NAV_PERMISSIONS.WITHDRAWAL_EXCHANGE },
+    access: {
+      kind: "anyPermission",
+      permissions: [NAV_PERMISSIONS.WITHDRAWAL_EXCHANGE, NAV_PERMISSIONS.WITHDRAWAL_BANKER],
+    },
   },
   {
     prefix: "/withdrawal/banker",
-    access: { kind: "permission", permission: NAV_PERMISSIONS.WITHDRAWAL_BANKER },
+    access: {
+      kind: "anyPermission",
+      permissions: [NAV_PERMISSIONS.WITHDRAWAL_BANKER, NAV_PERMISSIONS.WITHDRAWAL_EXCHANGE],
+    },
   },
   {
     prefix: "/withdrawal/final-list",

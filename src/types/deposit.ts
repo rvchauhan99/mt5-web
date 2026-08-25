@@ -14,6 +14,33 @@ export type DepositCreateInput =
       operatedAmount?: number;
       exchangeRate?: number;
       entryAt?: string;
+      playerId: string;
+      bonusAmount: number;
+    }
+  | {
+      settlementAccountType: "person";
+      liabilityPersonId: string;
+      utr: string;
+      amount: number;
+      operatedCurrency?: string;
+      operatedAmount?: number;
+      exchangeRate?: number;
+      entryAt?: string;
+      playerId: string;
+      bonusAmount: number;
+    };
+
+/** Pending-only update payload (legacy pending rows). */
+export type DepositUpdateInput =
+  | {
+      settlementAccountType: "bank";
+      bankId: string;
+      utr: string;
+      amount: number;
+      operatedCurrency?: string;
+      operatedAmount?: number;
+      exchangeRate?: number;
+      entryAt?: string;
     }
   | {
       settlementAccountType: "person";

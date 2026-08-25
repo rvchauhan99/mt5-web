@@ -7,6 +7,7 @@ import type {
   DepositCreateInput,
   DepositImportJobSummary,
   DepositRow,
+  DepositUpdateInput,
   DepositView,
 } from "@/types/deposit";
 import { getAccessToken } from "./sessionStore";
@@ -208,7 +209,7 @@ export async function createDeposit(input: DepositCreateInput): Promise<unknown>
   return response.data?.data;
 }
 
-export async function updateDeposit(id: string, input: DepositCreateInput): Promise<unknown> {
+export async function updateDeposit(id: string, input: DepositUpdateInput): Promise<unknown> {
   const response = await apiClient.put<{ success: boolean; data: unknown }>(`/deposit/${id}`, {
     ...input,
     entryAt: normalizeDateTimeInput(input.entryAt),
@@ -282,7 +283,7 @@ export async function listDepositsNormalized(
       total: Number(meta?.total ?? 0),
       page: Number(meta?.page ?? page),
       pageSize: Number(meta?.pageSize ?? limit),
-      ...(view === "banker" ? { lastBankerDeposit } : {}),
+      ...(lastBankerDeposit != null ? { lastBankerDeposit } : {}),
     },
   };
 }

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { listPlayerLookupOptions } from "@/services/lookupService";
 import { getPlayerById, listPlayersNormalized, updatePlayer } from "@/services/playerService";
+import type { PlayerUserType } from "@/types/player";
 
 export function PlayerEditClient() {
   const [playerRecordId, setPlayerRecordId] = useState("");
@@ -20,15 +21,15 @@ export function PlayerEditClient() {
   const [exchangeLabel, setExchangeLabel] = useState("");
   const [playerIdLabel, setPlayerIdLabel] = useState("");
   const [phone, setPhone] = useState("");
-  const [regularBonusPct, setRegularBonusPct] = useState("0");
-  const [firstDepositBonusPct, setFirstDepositBonusPct] = useState("0");
+  const [email, setEmail] = useState("");
+  const [userType, setUserType] = useState<PlayerUserType>("trader");
   const [referredByPlayerId, setReferredByPlayerId] = useState("");
-  const [referralPercentage, setReferralPercentage] = useState("1");
+  const [referralPercentage, setReferralPercentage] = useState("0");
   const [errors, setErrors] = useState<{
     player?: string;
     phone?: string;
-    regularBonusPercentage?: string;
-    firstDepositBonusPercentage?: string;
+    email?: string;
+    userType?: string;
     referralPercentage?: string;
   }>({});
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -40,16 +41,16 @@ export function PlayerEditClient() {
     setExchangeLabel("");
     setPlayerIdLabel("");
     setPhone("");
-    setRegularBonusPct("0");
-    setFirstDepositBonusPct("0");
+    setEmail("");
+    setUserType("trader");
     setReferredByPlayerId("");
-    setReferralPercentage("1");
+    setReferralPercentage("0");
     setErrors({});
   }, []);
 
   const loadReferrerOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
-      const rows = await listPlayerLookupOptions({ q: query || undefined, limit: 25 });
+      const rows = await listPlayerLookupOptions({ q: query || undefined, limit: 10, userType: "ib" });
       return rows.map((p) => ({ value: p.id, label: `${p.playerId} · ${p.phone} · ${p.exchangeName}` }));
     } catch {
       return [];
@@ -97,8 +98,8 @@ export function PlayerEditClient() {
         setExchangeLabel("");
         setPlayerIdLabel("");
         setPhone("");
-        setRegularBonusPct("0");
-        setFirstDepositBonusPct("0");
+        setEmail("");
+        setUserType("trader");
         return;
       }
 
@@ -113,16 +114,16 @@ export function PlayerEditClient() {
         setExchangeLabel(exchangeText);
         setPlayerIdLabel(row.playerId);
         setPhone(row.phone);
-        setRegularBonusPct(String(row.regularBonusPercentage ?? 0));
-        setFirstDepositBonusPct(String(row.firstDepositBonusPercentage ?? 0));
+        setEmail(row.email ?? "");
+        setUserType(row.userType === "ib" ? "ib" : "trader");
         const referredBy =
           typeof row.referredByPlayerId === "string"
             ? row.referredByPlayerId
             : row.referredByPlayerId?._id ?? "";
         setReferredByPlayerId(referredBy);
-        setReferralPercentage(String(row.referralPercentage ?? 1));
+        setReferralPercentage(String(row.referralPercentage ?? 0));
       } catch (error: unknown) {
-        toast.error(getApiErrorMessage(error, "Failed to load player details"));
+        toast.error(getApiErrorMessage(error, "Failed to load trader details"));
       } finally {
         setLoadingDetails(false);
       }
@@ -134,22 +135,16 @@ export function PlayerEditClient() {
 
   const onSave = useCallback(async () => {
     const next: typeof errors = {};
-    if (!playerRecordId.trim()) next.player = "Player selection is required.";
+    if (!playerRecordId.trim()) next.player = "Trader selection is required.";
     if (!phone.trim()) next.phone = "Phone number is required.";
-
-    const regularBonus = Number(regularBonusPct);
-    if (regularBonusPct.trim() === "" || Number.isNaN(regularBonus)) {
-      next.regularBonusPercentage = "Regular bonus percentage is required.";
-    } else if (regularBonus < 0 || regularBonus > 100) {
-      next.regularBonusPercentage = "Regular bonus percentage must be between 0 and 100.";
+    const emailTrim = email.trim();
+    if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      next.email = "Enter a valid email address.";
+    }
+    if (userType !== "trader" && userType !== "ib") {
+      next.userType = "User type is required.";
     }
 
-    const firstDepositBonus = Number(firstDepositBonusPct);
-    if (firstDepositBonusPct.trim() === "" || Number.isNaN(firstDepositBonus)) {
-      next.firstDepositBonusPercentage = "First deposit bonus percentage is required.";
-    } else if (firstDepositBonus < 0 || firstDepositBonus > 100) {
-      next.firstDepositBonusPercentage = "First deposit bonus percentage must be between 0 and 100.";
-    }
     const referralPctNum = Number(referralPercentage);
     if (referralPercentage.trim() === "" || Number.isNaN(referralPctNum)) {
       next.referralPercentage = "Referral percentage is required.";
@@ -164,25 +159,27 @@ export function PlayerEditClient() {
     try {
       await updatePlayer(playerRecordId.trim(), {
         phone: phone.trim(),
-        regularBonusPercentage: regularBonus,
-        firstDepositBonusPercentage: firstDepositBonus,
+        email: email.trim() || null,
+        userType,
+        regularBonusPercentage: 0,
+        firstDepositBonusPercentage: 0,
         referredByPlayerId: referredByPlayerId || null,
         referralPercentage: referralPctNum,
       });
-      toast.success("Player updated successfully.");
+      toast.success("Trader updated successfully.");
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to update player"));
+      toast.error(getApiErrorMessage(error, "Failed to update trader"));
     } finally {
       setSaving(false);
     }
-  }, [errors, playerRecordId, phone, regularBonusPct, firstDepositBonusPct]);
+  }, [playerRecordId, phone, email, userType, referredByPlayerId, referralPercentage]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 pb-4">
-      <FormContainer title="Edit Exchange Player" description="Select a player and update editable details." contentOverflow="visible" className="flex-none">
+      <FormContainer title="Edit Exchange Trader" description="Select a trader and update editable details." contentOverflow="visible" className="flex-none">
         <FormGrid>
           <div>
-            <FieldLabel>Select Player *</FieldLabel>
+            <FieldLabel>Select Trader *</FieldLabel>
             <AutocompleteField
               value={playerRecordId}
               onChange={(v) => {
@@ -202,8 +199,8 @@ export function PlayerEditClient() {
             <Input value={exchangeLabel} disabled placeholder={loadingDetails ? "Loading..." : "Exchange"} />
           </div>
           <div>
-            <FieldLabel>Player Id *</FieldLabel>
-            <Input value={playerIdLabel} disabled placeholder={loadingDetails ? "Loading..." : "Player Id"} />
+            <FieldLabel>Trader Id *</FieldLabel>
+            <Input value={playerIdLabel} disabled placeholder={loadingDetails ? "Loading..." : "Trader Id"} />
           </div>
           <div>
             <FieldLabel>Phone Number *</FieldLabel>
@@ -216,52 +213,50 @@ export function PlayerEditClient() {
             <FieldError message={errors.phone} />
           </div>
           <div>
-            <FieldLabel>Regular Bonus Percentage *</FieldLabel>
+            <FieldLabel>Email ID</FieldLabel>
             <Input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
-              placeholder="0"
-              value={regularBonusPct}
-              onChange={(e) => setRegularBonusPct(e.target.value)}
+              type="email"
+              placeholder="Email ID"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={!canEdit || saving || loadingDetails}
+              aria-label="Email ID"
             />
-            <FieldError message={errors.regularBonusPercentage} />
+            <FieldError message={errors.email} />
           </div>
           <div>
-            <FieldLabel>First Deposit Bonus Percentage *</FieldLabel>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
-              placeholder="0"
-              value={firstDepositBonusPct}
-              onChange={(e) => setFirstDepositBonusPct(e.target.value)}
+            <FieldLabel>User type *</FieldLabel>
+            <select
+              className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-sm"
+              value={userType}
+              onChange={(e) => setUserType(e.target.value === "ib" ? "ib" : "trader")}
               disabled={!canEdit || saving || loadingDetails}
-            />
-            <FieldError message={errors.firstDepositBonusPercentage} />
+              aria-label="User type"
+            >
+              <option value="trader">Trader</option>
+              <option value="ib">IB</option>
+            </select>
+            <FieldError message={errors.userType} />
           </div>
           <div>
-            <FieldLabel>Referred By (Old Player)</FieldLabel>
+            <FieldLabel>IB</FieldLabel>
             <AutocompleteField
               value={referredByPlayerId}
               onChange={setReferredByPlayerId}
               loadOptions={loadReferrerOptions}
               autoSelectSingleOption
-              placeholder="search old player..."
+              placeholder="search IB..."
               disabled={!canEdit || saving || loadingDetails}
             />
           </div>
           <div>
-            <FieldLabel>Referral Percentage *</FieldLabel>
+            <FieldLabel>Referral Percentage for IB *</FieldLabel>
             <Input
               type="number"
               min={0}
               max={100}
               step="0.01"
-              placeholder="1"
+              placeholder="0"
               value={referralPercentage}
               onChange={(e) => setReferralPercentage(e.target.value)}
               disabled={!canEdit || saving || loadingDetails}

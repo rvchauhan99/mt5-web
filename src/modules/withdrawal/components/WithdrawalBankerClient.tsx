@@ -107,7 +107,7 @@ function WithdrawalDetailCard({ withdrawal }: { withdrawal: WithdrawalRow }) {
   const items = [
     {
       icon: <IconUser className="size-4 shrink-0 text-[var(--brand-primary)]" />,
-      label: "Player",
+      label: "Trader",
       value: withdrawal.playerName || "—",
     },
     {
@@ -554,7 +554,7 @@ export function WithdrawalBankerClient() {
     if (payoutSettlementType === "person" && !liabilityPersonId.trim()) {
       next.liabilityPersonId = "Liability person is required.";
     }
-    if (!utr.trim()) next.utr = "UTR reference is required.";
+    if (!utr.trim()) next.utr = "Reference number is required.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -616,7 +616,7 @@ export function WithdrawalBankerClient() {
               <Checkbox
                 checked={Boolean(bulkSelection[row.id])}
                 onChange={(e) => toggleBulkSelection(row, e.target.checked)}
-                aria-label={`Select payout UTR ${row.utr}`}
+                aria-label={`Select payout Reference Number ${row.utr}`}
               />
             </div>
           );
@@ -624,7 +624,7 @@ export function WithdrawalBankerClient() {
       },
       {
         field: "playerName",
-        label: "Player",
+        label: "Trader",
         render: (row: WithdrawalRow) => row.playerName,
         ...tableColumnPresets.nameCol,
         sortable: true,
@@ -757,7 +757,7 @@ export function WithdrawalBankerClient() {
     <>
       <ListingPageContainer
         title="Withdrawal / Banker"
-        description="Pending exchange withdrawals awaiting payout bank and UTR. Click a row to open the sidebar for payout action."
+        description="Pending exchange withdrawals awaiting payout bank and Reference Number. Click a row to open the sidebar for payout action."
         density="compact"
         fullWidth
         secondaryButtonLabel="Reset filters"
@@ -865,7 +865,7 @@ export function WithdrawalBankerClient() {
       <DetailsSidebar
         open={!!selectedWithdrawal}
         title="Withdrawal Banker"
-        subtitle={selectedWithdrawal ? `Player: ${selectedWithdrawal.playerName}` : undefined}
+        subtitle={selectedWithdrawal ? `Trader: ${selectedWithdrawal.playerName}` : undefined}
         onClose={closeSidebar}
         width="400px"
       >
@@ -897,12 +897,12 @@ export function WithdrawalBankerClient() {
                   </select>
                 </div>
                 <div className="flex-1 space-y-1">
-                  <FieldLabel className="mb-1 text-xs text-muted-foreground">UTR Reference *</FieldLabel>
+                  <FieldLabel className="mb-1 text-xs text-muted-foreground">Reference Number *</FieldLabel>
                   <Input
                     className="h-9 text-sm"
                     value={utr}
                     onChange={(e) => setUtr(e.target.value)}
-                    placeholder="Enter UTR"
+                    placeholder="Enter Reference Number"
                     disabled={selectedWithdrawal.status !== "requested" || actionLoading}
                   />
                   <FieldError message={errors.utr} />
@@ -984,7 +984,7 @@ export function WithdrawalBankerClient() {
             <h3 className="text-lg font-semibold">Approve import-ready withdrawals</h3>
             <p className="text-sm text-gray-600">
               You are about to record payout for <strong>{bulkSummary.count}</strong> requested withdrawal
-              {bulkSummary.count === 1 ? "" : "s"} using payout UTR and bank/person stored from import.
+              {bulkSummary.count === 1 ? "" : "s"} using payout Reference Number and bank/person stored from import.
             </p>
             <dl className="grid grid-cols-2 gap-2 text-sm">
               <dt className="text-gray-500">Payable total</dt>
@@ -992,7 +992,7 @@ export function WithdrawalBankerClient() {
             </dl>
             {bulkSummary.utrs.length > 0 && (
               <div className="rounded-md border border-[var(--border)] bg-slate-50 px-3 py-2 text-xs text-gray-700">
-                <p className="mb-1 font-medium">Payout UTRs</p>
+                <p className="mb-1 font-medium">Payout Reference Numbers</p>
                 <p className="font-mono break-all">
                   {bulkSummary.utrs.slice(0, 5).join(", ")}
                   {bulkSummary.utrs.length > 5 ? ` … and ${bulkSummary.utrs.length - 5} more` : ""}

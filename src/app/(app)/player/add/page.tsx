@@ -3,7 +3,7 @@ import { ListingPageContainer } from "@/components/common/ListingPageContainer";
 
 export default function PlayerAddPage() {
   return (
-    <ListingPageContainer title="Player / Add" fullWidth>
+    <ListingPageContainer title="Trader / Add" fullWidth>
       <PlayerAddClient />
     </ListingPageContainer>
   );

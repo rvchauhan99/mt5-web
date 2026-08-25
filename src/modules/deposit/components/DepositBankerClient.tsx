@@ -26,7 +26,6 @@ import { TableStatusBadge } from "@/components/common/TableStatusBadge";
 import { useListingQueryStateReference } from "@/hooks/useListingQueryStateReference";
 import { tableColumnPresets } from "@/lib/tableStylePresets";
 import {
-  createDeposit,
   exportDeposits,
   listDepositsNormalized,
   updateDeposit,
@@ -38,7 +37,7 @@ import {
 } from "@/modules/deposit/depositListingStatusFilter";
 import { listBankLookupOptions } from "@/services/lookupService";
 import { listLiabilityPersonsNormalized } from "@/services/liabilityService";
-import type { DepositCreateInput, DepositRow } from "@/types/deposit";
+import type { DepositRow, DepositUpdateInput } from "@/types/deposit";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { useApprovalQueueAutoRefresh } from "@/hooks/useApprovalQueueAutoRefresh";
@@ -178,68 +177,7 @@ export function DepositBankerClient() {
   }, []);
 
   const onSubmit = async () => {
-    if (!platformCurrency) {
-      toast.error("Set platform currency in Profile first");
-      return;
-    }
-    const next: typeof errors = {};
-    if (settlementAccountType === "bank" && !bankId.trim()) next.bankId = "Bank is required.";
-    if (settlementAccountType === "person" && !liabilityPersonId.trim()) {
-      next.liabilityPersonId = "Liability person is required.";
-    }
-    if (!utr.trim()) next.utr = "UTR is required.";
-    const amt = Number(money.amount);
-    const minUnit = getCurrencyMinUnit(money.operatedCurrency || platformCurrency);
-    if (!money.amount.trim() || Number.isNaN(amt) || amt < minUnit) {
-      next.amount = `Amount must be at least ${minUnit}.`;
-    } else if ((money.operatedCurrency || platformCurrency) !== platformCurrency) {
-      const rate = Number(money.exchangeRate);
-      if (!money.exchangeRate.trim() || !Number.isFinite(rate) || rate <= 0) {
-        next.amount = "Enter a valid exchange rate.";
-      }
-    }
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
-
-    const fx = toMoneyFxPayload(money, platformCurrency);
-
-    const payload: DepositCreateInput =
-      settlementAccountType === "bank"
-        ? {
-            settlementAccountType: "bank",
-            bankId: bankId.trim(),
-            utr: utr.trim(),
-            amount: fx.amount,
-            operatedCurrency: fx.operatedCurrency,
-            operatedAmount: fx.operatedAmount,
-            exchangeRate: fx.exchangeRate,
-            entryAt,
-          }
-        : {
-            settlementAccountType: "person",
-            liabilityPersonId: liabilityPersonId.trim(),
-            utr: utr.trim(),
-            amount: fx.amount,
-            operatedCurrency: fx.operatedCurrency,
-            operatedAmount: fx.operatedAmount,
-            exchangeRate: fx.exchangeRate,
-            entryAt,
-          };
-
-    setLoading(true);
-    try {
-      await createDeposit(payload);
-      toast.success("Deposit recorded successfully.");
-      setUtr("");
-      setMoney(defaultOperatedMoneyValue(platformCurrency));
-      setEntryAt(currentDateTimeLocalValue());
-      setErrors({});
-      setTableKey((k) => k + 1);
-    } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to record deposit"));
-    } finally {
-      setLoading(false);
-    }
+    toast.info("Deposits are recorded on Deposit → Exchange.");
   };
 
   const reset = () => {
@@ -276,7 +214,7 @@ export function DepositBankerClient() {
     if (editSettlementAccountType === "person" && !editLiabilityPersonId.trim()) {
       next.liabilityPersonId = "Liability person is required.";
     }
-    if (!editUtr.trim()) next.utr = "UTR is required.";
+    if (!editUtr.trim()) next.utr = "Reference number is required.";
     const amt = Number(editMoney.amount);
     const minUnit = getCurrencyMinUnit(editMoney.operatedCurrency || platformCurrency);
     if (!editMoney.amount.trim() || Number.isNaN(amt) || amt < minUnit) {
@@ -292,7 +230,7 @@ export function DepositBankerClient() {
 
     const fx = toMoneyFxPayload(editMoney, platformCurrency);
 
-    const editPayload: DepositCreateInput =
+    const editPayload: DepositUpdateInput =
       editSettlementAccountType === "bank"
         ? {
             settlementAccountType: "bank",
@@ -386,7 +324,7 @@ export function DepositBankerClient() {
     () => [
       {
         field: "utr",
-        label: "UTR",
+        label: "Reference Number",
         render: (row: DepositRow) => row.utr,
         minWidth: 140,
         sortable: true,
@@ -563,8 +501,8 @@ export function DepositBankerClient() {
             </div>
           )}
           <div className="w-[160px]">
-            <FieldLabel className="mb-1 text-xs text-muted-foreground">UTR *</FieldLabel>
-            <Input placeholder="UTR" className="h-9 text-sm" value={utr} onChange={(e) => setUtr(e.target.value)} />
+            <FieldLabel className="mb-1 text-xs text-muted-foreground">Reference Number *</FieldLabel>
+            <Input placeholder="Reference Number" className="h-9 text-sm" value={utr} onChange={(e) => setUtr(e.target.value)} />
             <FieldError message={errors.utr} />
           </div>
           <div className="min-w-[320px] flex-1">
@@ -668,7 +606,7 @@ export function DepositBankerClient() {
           <div className="card w-full max-w-lg space-y-4 p-5">
             <h3 className="text-lg font-semibold">Edit pending deposit</h3>
             <p className="text-sm text-muted-foreground">
-              Settlement mode, counterparty, UTR, and amount can be corrected while the deposit is pending.
+              Settlement mode, counterparty, Reference Number, and amount can be corrected while the deposit is pending.
             </p>
             <div className="flex flex-wrap items-start gap-4 pt-2">
               <div className="w-[140px] space-y-1">
@@ -726,8 +664,8 @@ export function DepositBankerClient() {
                 </div>
               )}
               <div className="w-[160px]">
-                <FieldLabel className="mb-1 text-xs text-muted-foreground">UTR *</FieldLabel>
-                <Input placeholder="UTR" className="h-9 text-sm" value={editUtr} onChange={(e) => setEditUtr(e.target.value)} />
+                <FieldLabel className="mb-1 text-xs text-muted-foreground">Reference Number *</FieldLabel>
+                <Input placeholder="Reference Number" className="h-9 text-sm" value={editUtr} onChange={(e) => setEditUtr(e.target.value)} />
                 <FieldError message={editErrors.utr} />
               </div>
               <div className="min-w-[320px] flex-1">

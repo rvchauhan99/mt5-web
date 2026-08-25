@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { IconCheck, IconX, IconPencil } from "@tabler/icons-react";
 import { AutocompleteField, type AutocompleteOption } from "@/components/common/AutocompleteField";
@@ -34,9 +34,15 @@ import {
   exportWithdrawals,
 } from "@/services/withdrawalService";
 import { useExport } from "@/hooks/useExport";
-import { listPlayerLookupOptions } from "@/services/lookupService";
+import { listBankLookupOptions, listPlayerLookupOptions } from "@/services/lookupService";
+import { listLiabilityPersonsNormalized } from "@/services/liabilityService";
 import { userService } from "@/services/userService";
-import type { SavedWithdrawalAccount, WithdrawalRow } from "@/types/withdrawal";
+import type {
+  SavedWithdrawalAccount,
+  WithdrawalCreateInput,
+  WithdrawalPayoutSettlementType,
+  WithdrawalRow,
+} from "@/types/withdrawal";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/cn";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
@@ -135,10 +141,18 @@ export function WithdrawalExchangeClient() {
   const [bankName, setBankName] = useState("");
   const [ifsc, setIfsc] = useState("");
   const [money, setMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
-  const [reverseBonus, setReverseBonus] = useState("0");
   const [requestedAt, setRequestedAt] = useState(currentDateTimeLocalValue());
   const [savedPreset, setSavedPreset] = useState("");
   const [savedRows, setSavedRows] = useState<SavedWithdrawalAccount[]>([]);
+  const [payoutSettlementType, setPayoutSettlementType] = useState<WithdrawalPayoutSettlementType>("bank");
+  const [payoutBankId, setPayoutBankId] = useState("");
+  const [bankAutocompleteDefault, setBankAutocompleteDefault] = useState<AutocompleteOption | null>(null);
+  const [liabilityPersonId, setLiabilityPersonId] = useState("");
+  const [payoutPersonAutocompleteDefault, setPayoutPersonAutocompleteDefault] =
+    useState<AutocompleteOption | null>(null);
+  const [utr, setUtr] = useState("");
+  const payoutBankIdRef = useRef("");
+  const hasConsumedInitialListMetaRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -146,6 +160,10 @@ export function WithdrawalExchangeClient() {
   const [tableKey, setTableKey] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [cachedUsers, setCachedUsers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    payoutBankIdRef.current = payoutBankId;
+  }, [payoutBankId]);
 
   useApprovalQueueAutoRefresh({
     module: "withdrawal",
@@ -196,6 +214,34 @@ export function WithdrawalExchangeClient() {
     }
   }, []);
 
+  const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
+    try {
+      const rows = await listBankLookupOptions({ q: query || undefined, limit: 25 });
+      return rows.map((b) => ({
+        value: b.id,
+        label: b.label,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const loadLiabilityPersonOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
+    try {
+      const res = await listLiabilityPersonsNormalized({
+        page: 1,
+        limit: 25,
+        q: query || undefined,
+        sortBy: "name",
+        sortOrder: "asc",
+        isActive: "true",
+      });
+      return res.data.map((p) => ({ value: p.id, label: p.name }));
+    } catch {
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     if (!playerId) {
       setSavedRows([]);
@@ -224,15 +270,15 @@ export function WithdrawalExchangeClient() {
 
   const payablePreview = useMemo(() => {
     if (!platformCurrency) return 0;
-    const a = Number(money.amount);
-    const b = Number(reverseBonus);
-    if (!money.amount.trim() || Number.isNaN(a) || a < 1) return 0;
-    const fx = toMoneyFxPayload(money, platformCurrency);
-    if (!Number.isFinite(fx.amount) || !Number.isFinite(fx.exchangeRate) || fx.exchangeRate <= 0) return 0;
-    const rb = Number.isNaN(b) || b < 0 ? 0 : b;
-    const rbPlatform = roundMoneyToCurrency(rb * fx.exchangeRate, platformCurrency);
-    return Math.max(0, roundMoneyToCurrency(fx.amount - rbPlatform, platformCurrency));
-  }, [money, reverseBonus, platformCurrency]);
+    if (!money.amount.trim()) return 0;
+    try {
+      const fx = toMoneyFxPayload(money, platformCurrency);
+      if (!Number.isFinite(fx.amount) || fx.amount < 1) return 0;
+      return roundMoneyToCurrency(fx.amount, platformCurrency);
+    } catch {
+      return 0;
+    }
+  }, [money, platformCurrency]);
 
   const onSubmit = async () => {
     if (!platformCurrency) {
@@ -240,7 +286,7 @@ export function WithdrawalExchangeClient() {
       return;
     }
     const next: Record<string, string | undefined> = {};
-    if (!playerId.trim()) next.playerId = "Player is required.";
+    if (!playerId.trim()) next.playerId = "Trader is required.";
     if (!accountNumber.trim()) next.accountNumber = "Account number is required.";
     if (!accountHolderName.trim()) next.accountHolderName = "Account holder name is required.";
     if (!bankName.trim()) next.bankName = "Bank name is required.";
@@ -255,9 +301,14 @@ export function WithdrawalExchangeClient() {
         next.amount = "Enter a valid exchange rate.";
       }
     }
-    const rb = Number(reverseBonus);
-    if (reverseBonus.trim() !== "" && (Number.isNaN(rb) || rb < 0)) {
-      next.reverseBonus = "Reverse bonus must be ≥ 0.";
+    if (!editingId) {
+      if (payoutSettlementType === "bank" && !payoutBankId.trim()) {
+        next.bankId = "Payout bank is required.";
+      }
+      if (payoutSettlementType === "person" && !liabilityPersonId.trim()) {
+        next.liabilityPersonId = "Liability person is required.";
+      }
+      if (!utr.trim()) next.utr = "Reference number is required.";
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -276,24 +327,46 @@ export function WithdrawalExchangeClient() {
           operatedCurrency: fx.operatedCurrency,
           operatedAmount: fx.operatedAmount,
           exchangeRate: fx.exchangeRate,
-          reverseBonus: Number.isNaN(rb) || rb < 0 ? 0 : rb,
+          reverseBonus: 0,
         });
         toast.success("Withdrawal updated successfully.");
       } else {
-        await createWithdrawal({
-          playerId: playerId.trim(),
-          accountNumber: accountNumber.trim(),
-          accountHolderName: accountHolderName.trim(),
-          bankName: bankName.trim(),
-          ifsc: ifsc.trim(),
-          amount: fx.amount,
-          operatedCurrency: fx.operatedCurrency,
-          operatedAmount: fx.operatedAmount,
-          exchangeRate: fx.exchangeRate,
-          reverseBonus: Number.isNaN(rb) || rb < 0 ? 0 : rb,
-          requestedAt,
-        });
-        toast.success("Withdrawal requested successfully.");
+        const createPayload: WithdrawalCreateInput =
+          payoutSettlementType === "bank"
+            ? {
+                playerId: playerId.trim(),
+                accountNumber: accountNumber.trim(),
+                accountHolderName: accountHolderName.trim(),
+                bankName: bankName.trim(),
+                ifsc: ifsc.trim(),
+                amount: fx.amount,
+                operatedCurrency: fx.operatedCurrency,
+                operatedAmount: fx.operatedAmount,
+                exchangeRate: fx.exchangeRate,
+                reverseBonus: 0,
+                requestedAt,
+                payoutSettlementType: "bank",
+                bankId: payoutBankId.trim(),
+                utr: utr.trim(),
+              }
+            : {
+                playerId: playerId.trim(),
+                accountNumber: accountNumber.trim(),
+                accountHolderName: accountHolderName.trim(),
+                bankName: bankName.trim(),
+                ifsc: ifsc.trim(),
+                amount: fx.amount,
+                operatedCurrency: fx.operatedCurrency,
+                operatedAmount: fx.operatedAmount,
+                exchangeRate: fx.exchangeRate,
+                reverseBonus: 0,
+                requestedAt,
+                payoutSettlementType: "person",
+                liabilityPersonId: liabilityPersonId.trim(),
+                utr: utr.trim(),
+              };
+        await createWithdrawal(createPayload);
+        toast.success("Withdrawal recorded and approved.");
       }
       setEditingId(null);
       setAccountNumber("");
@@ -301,9 +374,9 @@ export function WithdrawalExchangeClient() {
       setBankName("");
       setIfsc("");
       setMoney(defaultOperatedMoneyValue(platformCurrency));
-      setReverseBonus("0");
       setRequestedAt(currentDateTimeLocalValue());
       setSavedPreset("");
+      setUtr("");
       setErrors({});
       setTableKey((k) => k + 1);
     } catch (error: unknown) {
@@ -325,13 +398,7 @@ export function WithdrawalExchangeClient() {
       operatedCurrency: row.operatedCurrency || platformCurrency || "",
       exchangeRate: String(row.exchangeRate ?? 1),
     });
-    setReverseBonus(
-      String(
-        row.reverseBonus != null && row.exchangeRate && row.exchangeRate > 0
-          ? Math.round(row.reverseBonus / row.exchangeRate)
-          : row.reverseBonus || 0,
-      ),
-    );
+    setErrors({});
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -342,9 +409,12 @@ export function WithdrawalExchangeClient() {
     setBankName("");
     setIfsc("");
     setMoney(defaultOperatedMoneyValue(platformCurrency));
-    setReverseBonus("0");
     setRequestedAt(currentDateTimeLocalValue());
     setSavedPreset("");
+    setPayoutSettlementType("bank");
+    setLiabilityPersonId("");
+    setPayoutPersonAutocompleteDefault(null);
+    setUtr("");
     setEditingId(null);
     setErrors({});
   };
@@ -398,7 +468,16 @@ export function WithdrawalExchangeClient() {
   }, [handleExport, filters, sortBy, sortOrder]);
 
   const fetcher = useCallback(async (params: Record<string, unknown>) => {
-    return listWithdrawalsNormalized("exchange", params);
+    const res = await listWithdrawalsNormalized("exchange", params);
+    if (!hasConsumedInitialListMetaRef.current) {
+      hasConsumedInitialListMetaRef.current = true;
+      const hint = res.meta.lastBankerPayout;
+      if (hint?.bankId && payoutBankIdRef.current === "") {
+        setPayoutBankId(hint.bankId);
+        setBankAutocompleteDefault({ value: hint.bankId, label: hint.bankName });
+      }
+    }
+    return res;
   }, []);
 
   const creatorNameById = useMemo(() => new Map(Object.entries(cachedUsers)), [cachedUsers]);
@@ -407,7 +486,7 @@ export function WithdrawalExchangeClient() {
     () => [
       {
         field: "playerName",
-        label: "Player",
+        label: "Trader",
         render: (row: WithdrawalRow) => row.playerName,
         ...tableColumnPresets.nameCol,
         sortable: true,
@@ -503,7 +582,7 @@ export function WithdrawalExchangeClient() {
       },
       {
         field: "utr",
-        label: "UTR",
+        label: "Reference Number",
         minWidth: 120,
         sortable: true,
         filterType: "text" as const,
@@ -560,9 +639,10 @@ export function WithdrawalExchangeClient() {
           title={editingId ? "Edit withdrawal" : "Exchange withdrawal"}
           description={
             editingId
-              ? "Updating an existing withdrawal request."
-              : "Create a withdrawal request for a player. Saved bank accounts from past withdrawals appear in the quick-select list."
+              ? "Update destination account and amount for a pending request. Payout is set when the withdrawal is created."
+              : "Record trader destination, payout settlement, and reference number in one step. Saved withdrawals are approved immediately."
           }
+          contentOverflow="visible"
         >
           <FormGrid cols={4} compact>
             <div className="lg:col-span-1">
@@ -575,7 +655,7 @@ export function WithdrawalExchangeClient() {
                 playerId || editingId ? "lg:col-span-2" : "lg:col-span-3",
               )}
             >
-              <FieldLabel>Player *</FieldLabel>
+              <FieldLabel>Trader *</FieldLabel>
               <AutocompleteField
                 value={playerId}
                 onChange={(v) => {
@@ -583,10 +663,10 @@ export function WithdrawalExchangeClient() {
                   setSavedPreset("");
                 }}
                 loadOptions={loadPlayerOptions}
-              autoSelectSingleOption
-                placeholder="Search player…"
-                emptyText="No players found"
-                disabled={!!editingId} // lock player on edit
+                autoSelectSingleOption
+                placeholder="Search trader…"
+                emptyText="No traders found"
+                disabled={!!editingId}
               />
               <FieldError message={errors.playerId} />
             </div>
@@ -662,21 +742,75 @@ export function WithdrawalExchangeClient() {
               </div>
             ) : null}
             <div>
-              <FieldLabel>Reverse bonus</FieldLabel>
-              <Input
-                type="number"
-                min={0}
-                step="1"
-                value={reverseBonus}
-                onChange={(e) => setReverseBonus(e.target.value)}
-                placeholder="0"
-              />
-              <FieldError message={errors.reverseBonus} />
-            </div>
-            <div>
               <FieldLabel>Payable amount</FieldLabel>
               <Input readOnly value={formatWholeMoney(payablePreview)} className="bg-slate-50" />
             </div>
+            {!editingId ? (
+              <>
+                <div>
+                  <FieldLabel>Payout settlement *</FieldLabel>
+                  <select
+                    className="w-full h-9 rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-sm"
+                    value={payoutSettlementType}
+                    onChange={(e) => {
+                      const v = e.target.value === "person" ? "person" : "bank";
+                      setPayoutSettlementType(v);
+                      setErrors((prev) => {
+                        const n = { ...prev };
+                        delete n.bankId;
+                        delete n.liabilityPersonId;
+                        return n;
+                      });
+                    }}
+                    aria-label="Payout settlement type"
+                    disabled={loading}
+                  >
+                    <option value="bank">Bank</option>
+                    <option value="person">Liability person</option>
+                  </select>
+                </div>
+                {payoutSettlementType === "bank" ? (
+                  <div className="md:col-span-2">
+                    <FieldLabel>Company payout bank *</FieldLabel>
+                    <AutocompleteField
+                      value={payoutBankId}
+                      onChange={setPayoutBankId}
+                      loadOptions={loadBankOptions}
+                      placeholder="Select bank..."
+                      emptyText="No banks found"
+                      defaultOption={bankAutocompleteDefault}
+                      disabled={loading}
+                    />
+                    <FieldError message={errors.bankId} />
+                  </div>
+                ) : (
+                  <div className="md:col-span-2">
+                    <FieldLabel>Liability person paying out *</FieldLabel>
+                    <AutocompleteField
+                      value={liabilityPersonId}
+                      onChange={setLiabilityPersonId}
+                      loadOptions={loadLiabilityPersonOptions}
+                      placeholder="Search liability person..."
+                      emptyText="No persons found"
+                      defaultOption={payoutPersonAutocompleteDefault}
+                      disabled={loading}
+                    />
+                    <FieldError message={errors.liabilityPersonId} />
+                  </div>
+                )}
+                <div>
+                  <FieldLabel>Reference Number *</FieldLabel>
+                  <Input
+                    value={utr}
+                    onChange={(e) => setUtr(e.target.value)}
+                    placeholder="Enter Reference Number"
+                    disabled={loading}
+                    aria-label="Reference Number"
+                  />
+                  <FieldError message={errors.utr} />
+                </div>
+              </>
+            ) : null}
           </FormGrid>
           <FormActions className="justify-between px-5 py-4">
             <Button
@@ -698,7 +832,7 @@ export function WithdrawalExchangeClient() {
       <div className="flex min-h-0 flex-1 flex-col">
         <ListingPageContainer
           title="Exchange withdrawals"
-          description="Requests in the exchange pipeline (requested, approved, rejected)."
+          description="Exchange pipeline withdrawals (approved on create; legacy requested rows remain editable)."
           density="compact"
           fullWidth
           secondaryButtonLabel="Reset filters"

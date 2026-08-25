@@ -70,9 +70,9 @@ const HAS_AMENDMENT_OPTIONS = [
 
 const CHIP_LABELS: Partial<Record<WithdrawalFinalFilterKey | "q", string>> = {
   q: "Search",
-  utr: "UTR",
+  utr: "Reference Number",
   bankName: "Bank name",
-  playerName: "Player name",
+  playerName: "Trader name",
   status: "Status",
   hasAmendment: "Amendments",
   amount: "Requested",
@@ -328,7 +328,7 @@ export function WithdrawalFinalListFilterPanel({
           />
           <Input
             type="text"
-            placeholder="Quick search (UTR, player name)"
+            placeholder="Quick search (Reference Number, trader name)"
             className="h-10 border-[var(--border)] pl-9 pr-8 text-sm"
             value={quickSearch}
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleQuickSearchChange(e.target.value)}
@@ -357,10 +357,10 @@ export function WithdrawalFinalListFilterPanel({
       {open && (
         <div className="mt-3 grid grid-cols-1 gap-3 border-t border-[var(--border)] pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-600">UTR (contains)</Label>
+            <Label className="text-xs text-slate-600">Reference Number (contains)</Label>
             <Input
               className="h-9 w-full text-sm"
-              placeholder="UTR reference"
+              placeholder="Reference Number"
               value={local.utr}
               onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange("utr", e.target.value)}
             />
@@ -377,10 +377,10 @@ export function WithdrawalFinalListFilterPanel({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-600">Player name (contains)</Label>
+            <Label className="text-xs text-slate-600">Trader name (contains)</Label>
             <Input
               className="h-9 w-full text-sm"
-              placeholder="Player name"
+              placeholder="Trader name"
               value={local.playerName}
               onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange("playerName", e.target.value)}
             />

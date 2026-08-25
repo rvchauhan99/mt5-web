@@ -67,6 +67,9 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
         msg = `${msg} (${pieces.join(", ")})`;
       }
     }
+    if (typeof msg === "string" && msg.startsWith("UTR already exists in another transaction")) {
+      msg = `Reference number${msg.slice(3)}`;
+    }
     return msg;
   }
   return fallback;

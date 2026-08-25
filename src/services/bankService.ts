@@ -177,7 +177,7 @@ export async function listBanksRaw(page = 1, pageSize = 20) {
 }
 
 export type BankLedgerRow = {
-  kind: "deposit" | "withdrawal" | "expense" | "liability" | "settlement";
+  kind: "deposit" | "withdrawal" | "expense" | "liability" | "settlement" | "referral";
   refId: string;
   at: string;
   label: string;
@@ -229,7 +229,7 @@ export async function getBankLedger(
   query?: {
     fromDate?: string;
     toDate?: string;
-    entryType?: "all" | "deposit" | "withdrawal" | "expense" | "liability" | "settlement";
+    entryType?: "all" | "deposit" | "withdrawal" | "expense" | "liability" | "settlement" | "referral";
   },
 ): Promise<BankLedgerResponse> {
   const res = await apiClient.get<{ success: boolean; data: BankLedgerResponse }>(

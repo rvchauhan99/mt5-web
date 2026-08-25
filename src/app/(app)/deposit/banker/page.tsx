@@ -1,7 +1,5 @@
-import { DepositBankerClient } from "@/modules/deposit/components/DepositBankerClient";
+import { redirect } from "next/navigation";
 
 export default function DepositBankerPage() {
-  return (
-    <DepositBankerClient />
-  );
+  redirect("/deposit/exchange");
 }

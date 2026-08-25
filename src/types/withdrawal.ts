@@ -20,6 +20,10 @@ export type WithdrawalCreateInput = {
   operatedCurrency?: string;
   operatedAmount?: number;
   exchangeRate?: number;
+  payoutSettlementType: WithdrawalPayoutSettlementType;
+  bankId?: string;
+  liabilityPersonId?: string;
+  utr: string;
 };
 
 export type WithdrawalAmendmentSnapshot = {

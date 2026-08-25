@@ -17,6 +17,7 @@ import { DATE_PRESETS, DEFAULT_PRESET } from "./DashboardFilterBar";
 import { DashboardKPIs, type DashboardSummary } from "./DashboardKPIs";
 import { DashboardTrendChart, type TrendDataPoint } from "./DashboardTrendChart";
 import { DashboardPLDonut } from "./DashboardPLDonut";
+import { DashboardIbTopPerformers } from "./DashboardIbTopPerformers";
 import { DashboardRecentActivity, type RecentActivityItem } from "./DashboardRecentActivity";
 import { DashboardExchangeSummary } from "./DashboardExchangeSummary";
 import { DashboardBankSummary } from "./DashboardBankSummary";
@@ -70,7 +71,7 @@ export function DashboardContent() {
   const appliedFilterChips = [
     filters.status !== "all" ? `Status: ${filters.status}` : "",
     filters.transaction_type !== "all" ? `Type: ${filters.transaction_type}` : "",
-    filters.player_id ? "Player" : "",
+    filters.player_id ? "Trader" : "",
     filters.bank_id ? "Bank" : "",
     filters.exchange_id ? "Exchange" : "",
     filters.amount_from ? `Min: ${filters.amount_from}` : "",
@@ -114,6 +115,16 @@ export function DashboardContent() {
         deposit: data.deposit ?? { totalAmount: 0, totalCount: 0, pendingCount: 0, pendingAmount: 0, verifiedAmount: 0, verifiedCount: 0, rejectedCount: 0, bonusTotal: 0 },
         withdrawal: data.withdrawal ?? { totalAmount: 0, totalCount: 0, pendingCount: 0, pendingAmount: 0, approvedAmount: 0, approvedCount: 0, rejectedCount: 0, reverseBonusTotal: 0 },
         expense: data.expense ?? { totalAmount: 0, totalCount: 0, pendingCount: 0, approvedAmount: 0 },
+        ibCommission: data.ibCommission ?? { totalAmount: 0, totalCount: 0, accruedAmount: 0, settledAmount: 0 },
+        ibTopPerformers: Array.isArray(data.ibTopPerformers)
+          ? data.ibTopPerformers.map((row: Record<string, unknown>) => ({
+              referrerPlayerId: String(row.referrerPlayerId ?? ""),
+              playerId: String(row.playerId ?? ""),
+              phone: String(row.phone ?? ""),
+              totalAmount: Number(row.totalAmount ?? 0),
+              count: Number(row.count ?? 0),
+            }))
+          : [],
         pnl: data.pnl ?? { gross: 0, net: 0 },
         exchanges: data.exchanges ?? { total: 0, active: 0 },
         users: data.users ?? { total: 0 },
@@ -335,6 +346,14 @@ export function DashboardContent() {
         <div className="col-span-12 lg:col-span-4 min-h-[360px]">
           <DashboardPLDonut summary={summary} loading={loading} />
         </div>
+      </div>
+
+      {/* ───── IB Top Performers ───── */}
+      <div className="min-h-[320px]">
+        <DashboardIbTopPerformers
+          performers={summary?.ibTopPerformers ?? []}
+          loading={loading}
+        />
       </div>
 
       {/* ───── Recent Activity Table ───── */}

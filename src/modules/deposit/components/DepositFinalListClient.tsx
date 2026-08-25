@@ -104,7 +104,6 @@ export function DepositFinalListClient() {
   const [amendEntryAt, setAmendEntryAt] = useState(currentDateTimeLocalValue());
   const [amendPlayerId, setAmendPlayerId] = useState("");
   const [amendPlayerDefault, setAmendPlayerDefault] = useState<AutocompleteOption | null>(null);
-  const [amendBonus, setAmendBonus] = useState("");
   const [amendReason, setAmendReason] = useState("");
   const [amendReasonId, setAmendReasonId] = useState("");
   const [amendReasonDefault, setAmendReasonDefault] = useState<AutocompleteOption | null>(null);
@@ -117,7 +116,6 @@ export function DepositFinalListClient() {
     utr?: string;
     amount?: string;
     playerId?: string;
-    bonus?: string;
     reason?: string;
   }>({});
 
@@ -273,7 +271,6 @@ export function DepositFinalListClient() {
           ? { value: pid, label: pid }
           : null,
     );
-    setAmendBonus(row.bonusAmount != null ? String(row.bonusAmount) : "0");
     setAmendReasonId("");
     setAmendReasonDefault(null);
     setAmendReason("");
@@ -291,20 +288,14 @@ export function DepositFinalListClient() {
     if (!selectedDeposit) return;
     const next: typeof amendErrors = {};
     if (!amendIsPersonSettlement && !amendBankId.trim()) next.bankId = "Bank is required.";
-    if (!amendUtr.trim()) next.utr = "UTR is required.";
+    if (!amendUtr.trim()) next.utr = "Reference number is required.";
     const amt = Number(amendAmount);
     if (!Number.isFinite(amt) || amt < 0) {
       next.amount = "Amount must be a whole number ≥ 0.";
     } else if (!Number.isInteger(amt)) {
       next.amount = "Amount must be a whole number (no decimals).";
     }
-    if (!amendPlayerId.trim()) next.playerId = "Player is required.";
-    const bonusNum = Number(amendBonus);
-    if (!Number.isFinite(bonusNum) || bonusNum < 0) {
-      next.bonus = "Bonus must be a number ≥ 0.";
-    } else if (!Number.isInteger(bonusNum)) {
-      next.bonus = "Bonus must be a whole number (no decimals).";
-    }
+    if (!amendPlayerId.trim()) next.playerId = "Trader is required.";
     if (!amendReasonId.trim()) next.reason = "Reason selection is required.";
     if (Object.keys(next).length) {
       setAmendErrors(next);
@@ -318,7 +309,7 @@ export function DepositFinalListClient() {
         amount: amt,
         entryAt: amendEntryAt || undefined,
         playerId: amendPlayerId.trim(),
-        bonusAmount: bonusNum,
+        bonusAmount: 0,
         reasonId: amendReasonId.trim(),
         remark: amendReason.trim() || undefined,
       });
@@ -342,7 +333,6 @@ export function DepositFinalListClient() {
     amendAmount,
     amendEntryAt,
     amendPlayerId,
-    amendBonus,
     amendReasonId,
     amendReason,
   ]);
@@ -367,7 +357,7 @@ export function DepositFinalListClient() {
     () => [
       {
         field: "player",
-        label: "Player",
+        label: "Trader",
         render: (row: DepositRow) => row.playerIdLabel || "—",
         minWidth: 120,
         sortable: false,
@@ -386,7 +376,7 @@ export function DepositFinalListClient() {
       },
       {
         field: "utr",
-        label: "UTR",
+        label: "Reference Number",
         render: (row: DepositRow) => row.utr,
         minWidth: 130,
         sortable: true,
@@ -396,13 +386,6 @@ export function DepositFinalListClient() {
         label: "Amount",
         render: (row: DepositRow) => formatWholeMoney(row.amount),
         sortable: true,
-      },
-      {
-        field: "bonusAmount",
-        label: "Bonus",
-        render: (row: DepositRow) => (row.bonusAmount != null ? formatWholeMoney(row.bonusAmount) : "—"),
-        sortable: true,
-        minWidth: 90,
       },
       {
         field: "totalAmount",
@@ -482,7 +465,7 @@ export function DepositFinalListClient() {
     <>
       <ListingPageContainer
         title="Deposit / Final list"
-        description="All deposits including rejections. Person-settled rows show liable person under Bank / Liable person. Verified rows can be amended; person-settled amendments update the liability ledger when amount or UTR changes."
+        description="All deposits including rejections. Person-settled rows show liable person under Bank / Liable person. Verified rows can be amended; person-settled amendments update the liability ledger when amount or Reference Number changes."
         density="compact"
         fullWidth
         secondaryButtonLabel="Reset filters"
@@ -538,7 +521,7 @@ export function DepositFinalListClient() {
       <DetailsSidebar
         open={Boolean(selectedDeposit)}
         title="Deposit details"
-        subtitle={selectedDeposit ? `UTR ${selectedDeposit.utr}` : undefined}
+        subtitle={selectedDeposit ? `Reference Number ${selectedDeposit.utr}` : undefined}
         onClose={() => setSelectedDeposit(null)}
         width="min(480px, 100vw)"
       >
@@ -567,15 +550,13 @@ export function DepositFinalListClient() {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-500">Amount / bonus / total</dt>
+                  <dt className="text-gray-500">Amount</dt>
                   <dd className="text-right font-medium">
-                    {formatWholeMoney(selectedDeposit.amount)} /{" "}
-                    {selectedDeposit.bonusAmount != null ? formatWholeMoney(selectedDeposit.bonusAmount) : "—"} /{" "}
-                    {selectedDeposit.totalAmount != null ? formatWholeMoney(selectedDeposit.totalAmount) : "—"}
+                    {formatWholeMoney(selectedDeposit.amount)}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-gray-500">Player</dt>
+                  <dt className="text-gray-500">Trader</dt>
                   <dd className="text-right font-medium">{selectedDeposit.playerIdLabel || "—"}</dd>
                 </div>
                 {selectedDeposit.lastAmendedAt && (
@@ -664,7 +645,7 @@ export function DepositFinalListClient() {
       >
         <p className="mb-3 text-sm text-gray-600">
           {amendIsPersonSettlement
-            ? "Liability-person settlement: bank balances are not changed. If you change amount, entry time, or UTR, the linked liability ledger entry will be rebuilt. Changes are recorded in amendment history and the audit log."
+            ? "Liability-person settlement: bank balances are not changed. If you change amount, entry time, or Reference Number, the linked liability ledger entry will be rebuilt. Changes are recorded in amendment history and the audit log."
             : "Changes update bank and exchange balances and are recorded in the amendment history and audit log."}
         </p>
         <FormGrid>
@@ -687,7 +668,7 @@ export function DepositFinalListClient() {
             </div>
           )}
           <div>
-            <FieldLabel>UTR</FieldLabel>
+            <FieldLabel>Reference Number</FieldLabel>
             <Input
               className="h-9"
               value={amendUtr}
@@ -719,28 +700,16 @@ export function DepositFinalListClient() {
             />
           </div>
           <div className="sm:col-span-2">
-            <FieldLabel>Player</FieldLabel>
+            <FieldLabel>Trader</FieldLabel>
             <AutocompleteField
               value={amendPlayerId}
               onChange={(v) => setAmendPlayerId(v)}
               loadOptions={loadPlayerOptions}
               autoSelectSingleOption
-              placeholder="Search player…"
+              placeholder="Search trader…"
               defaultOption={amendPlayerDefault}
             />
             <FieldError message={amendErrors.playerId} />
-          </div>
-          <div>
-            <FieldLabel>Bonus amount</FieldLabel>
-            <Input
-              className="h-9"
-              type="number"
-              min={0}
-              step="1"
-              value={amendBonus}
-              onChange={(e) => setAmendBonus(e.target.value)}
-            />
-            <FieldError message={amendErrors.bonus} />
           </div>
           <div className="sm:col-span-2">
             <FieldLabel>Reason (required)</FieldLabel>
@@ -783,7 +752,7 @@ export function DepositFinalListClient() {
           ledger row for person-settled deposits, where applicable).
         </p>
         <div className="space-y-1 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-gray-700">
-          <div><span className="font-medium">UTR:</span> {selectedDeposit?.utr || "—"}</div>
+          <div><span className="font-medium">Reference Number:</span> {selectedDeposit?.utr || "—"}</div>
           <div><span className="font-medium">Status:</span> {selectedDeposit?.status || "—"}</div>
           <div><span className="font-medium">Settlement:</span>{" "}
             {selectedDeposit?.settlementAccountType === "person" ? "Liability person" : "Bank"}

@@ -10,5 +10,7 @@ export type AppNavNode = {
    * Omit for items visible to any authenticated user.
    */
   requiredPermission?: string;
+  /** If set, leaf is visible when the user has any of these permissions (non-superadmin). */
+  requiredAnyPermissions?: string[];
   children?: AppNavNode[];
 };

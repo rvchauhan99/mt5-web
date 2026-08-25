@@ -12,6 +12,7 @@ import {
   IconCurrencyRupee,
   IconFileText,
 } from "@tabler/icons-react";
+import { FormActions, FormContainer } from "@/components/common/FormContainer";
 import { ListingPageContainer } from "@/components/common/ListingPageContainer";
 import PaginatedTableReference, {
   type PaginatedTableReferenceColumn,
@@ -19,35 +20,41 @@ import PaginatedTableReference, {
 import PaginationControlsReference from "@/components/common/PaginationControlsReference";
 import { AutocompleteField, type AutocompleteOption } from "@/components/common/AutocompleteField";
 import { FieldLabel } from "@/components/common/FieldLabel";
+import { FieldError } from "@/components/common/FieldError";
 import { TableStatusBadge } from "@/components/common/TableStatusBadge";
 import { DetailsSidebar } from "@/components/common/DetailsSidebar";
 import { ConfirmSensitiveActionDialog } from "@/components/common/ConfirmSensitiveActionDialog";
+import {
+  OperatedMoneyFields,
+  defaultOperatedMoneyValue,
+  toMoneyFxPayload,
+} from "@/components/common/OperatedMoneyFields";
 import { useListingQueryStateReference } from "@/hooks/useListingQueryStateReference";
 import { tableColumnPresets } from "@/lib/tableStylePresets";
+import { getCurrencyMinUnit } from "@/lib/currencies";
+import { usePlatformSettings } from "@/context/PlatformSettingsContext";
 import {
-  createBulkExchangeApproveJob,
+  createDeposit,
   exchangeActionApprove,
   exchangeActionMarkNotSettled,
   exchangeActionReject,
   exportDeposits,
-  getBulkExchangeApproveJob,
   listDepositsNormalized,
-  streamBulkExchangeApproveJobEvents,
 } from "@/services/depositService";
-import { isImportReadyDeposit } from "@/modules/deposit/depositImportReady";
 import { useExport } from "@/hooks/useExport";
 import { depositStatusApiParam, depositStatusColumnSelectValue } from "@/modules/deposit/depositListingStatusFilter";
-import { getPlayerBonusProfile, listPlayerLookupOptions } from "@/services/lookupService";
-import type { DepositBulkExchangeApproveJobSummary, DepositRow } from "@/types/deposit";
+import { listBankLookupOptions, listPlayerLookupOptions } from "@/services/lookupService";
+import { listLiabilityPersonsNormalized } from "@/services/liabilityService";
+import type { DepositCreateInput, DepositRow } from "@/types/deposit";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { userService } from "@/services/userService";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { REASON_TYPES } from "@/lib/constants/reasonTypes";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { useApprovalQueueAutoRefresh } from "@/hooks/useApprovalQueueAutoRefresh";
-import { formatDateTimeForUser } from "@/lib/userTimezone";
+import { currentDateTimeLocalValue, formatDateTimeForUser } from "@/lib/userTimezone";
+import { DepositImportDialog } from "./DepositImportDialog";
 
 const COLUMN_FILTER_KEYS = [
   "utr",
@@ -87,11 +94,6 @@ function formatRelative(iso?: string): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-function bonusAmountFromPercent(depositAmount: number, percent: number): string {
-  const v = Math.round((depositAmount * percent) / 100);
-  return String(v);
-}
-
 type ExchangeUserRow = {
   _id?: string;
   id?: string;
@@ -129,7 +131,7 @@ function DepositDetailCard({ deposit }: { deposit: DepositRow }) {
     },
     {
       icon: <IconFileText className="size-4 shrink-0 text-[var(--brand-primary)]" />,
-      label: "UTR",
+      label: "Reference Number",
       value: deposit.utr || "—",
       mono: true,
     },
@@ -190,6 +192,7 @@ function DepositDetailCard({ deposit }: { deposit: DepositRow }) {
 
 export function DepositExchangeClient() {
   const { formatWholeMoney } = useFormatMoney();
+  const { platformCurrency } = usePlatformSettings();
   const listingState = useListingQueryStateReference({
     defaultLimit: 20,
     filterKeys: COLUMN_FILTER_KEYS,
@@ -199,40 +202,52 @@ export function DepositExchangeClient() {
 
   const [totalCount, setTotalCount] = useState(0);
   const [tableKey, setTableKey] = useState(0);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedDeposit, setSelectedDeposit] = useState<DepositRow | null>(null);
   const [playerId, setPlayerId] = useState("");
-  const [bonus, setBonus] = useState("0");
-  const [playerBonusPercent, setPlayerBonusPercent] = useState<number | null>(null);
-  const [bonusPercentSource, setBonusPercentSource] = useState<"first_deposit" | "regular" | null>(null);
-  const bonusManuallyAdjustedRef = useRef(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReasonId, setRejectReasonId] = useState("");
   const [rejectRemark, setRejectRemark] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [cachedUsers, setCachedUsers] = useState<Record<string, string>>({});
-  const [visibleRows, setVisibleRows] = useState<DepositRow[]>([]);
-  const [bulkSelection, setBulkSelection] = useState<Record<string, DepositRow>>({});
-  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
-  const [bulkApproving, setBulkApproving] = useState(false);
-  const [bulkProgressOpen, setBulkProgressOpen] = useState(false);
-  const [bulkJobId, setBulkJobId] = useState<string | null>(null);
-  const [bulkJobSelectionIds, setBulkJobSelectionIds] = useState<string[]>([]);
-  const [bulkProgress, setBulkProgress] = useState<DepositBulkExchangeApproveJobSummary | null>(null);
+
+  // ─── Single-stage create form ─────────────────────────────────────────────
+  const [settlementAccountType, setSettlementAccountType] = useState<"bank" | "person">("bank");
+  const [bankId, setBankId] = useState("");
+  const [bankAutocompleteDefault, setBankAutocompleteDefault] = useState<AutocompleteOption | null>(null);
+  const [liabilityPersonId, setLiabilityPersonId] = useState("");
+  const [personAutocompleteDefault, setPersonAutocompleteDefault] = useState<AutocompleteOption | null>(null);
+  const bankIdRef = useRef(bankId);
+  const hasConsumedInitialListMetaRef = useRef(false);
+  const [utr, setUtr] = useState("");
+  const [money, setMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
+  const [entryAt, setEntryAt] = useState(currentDateTimeLocalValue());
+  const [createPlayerId, setCreatePlayerId] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createErrors, setCreateErrors] = useState<{
+    bankId?: string;
+    liabilityPersonId?: string;
+    utr?: string;
+    amount?: string;
+    playerId?: string;
+  }>({});
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+  useEffect(() => {
+    bankIdRef.current = bankId;
+  }, [bankId]);
+
+  useEffect(() => {
+    if (!platformCurrency) return;
+    setMoney((prev) =>
+      prev.operatedCurrency ? prev : { ...prev, operatedCurrency: platformCurrency },
+    );
+  }, [platformCurrency]);
 
   useApprovalQueueAutoRefresh({
     module: "deposit",
     view: "exchange",
     onRefresh: () => setTableKey((k) => k + 1),
   });
-
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const interval = setInterval(() => {
-      setTableKey((k) => k + 1);
-    }, 10_000);
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
 
   useEffect(() => {
     let active = true;
@@ -259,8 +274,11 @@ export function DepositExchangeClient() {
   }, []);
 
   const handlePlayerIdChange = useCallback((id: string) => {
-    bonusManuallyAdjustedRef.current = false;
     setPlayerId(id);
+  }, []);
+
+  const handleCreatePlayerIdChange = useCallback((id: string) => {
+    setCreatePlayerId(id);
   }, []);
 
   const loadPlayerOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
@@ -272,6 +290,34 @@ export function DepositExchangeClient() {
           label: `${p.playerId} · ${p.phone}`,
         }))
         .filter((o): o is AutocompleteOption => o.value.length > 0);
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
+    try {
+      const rows = await listBankLookupOptions({ q: query || undefined, limit: 25 });
+      return rows.map((b) => ({
+        value: b.id,
+        label: b.label,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const loadLiabilityPersonOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
+    try {
+      const res = await listLiabilityPersonsNormalized({
+        page: 1,
+        limit: 25,
+        q: query || undefined,
+        sortBy: "name",
+        sortOrder: "asc",
+        isActive: "true",
+      });
+      return res.data.map((p) => ({ value: p.id, label: p.name }));
     } catch {
       return [];
     }
@@ -303,12 +349,15 @@ export function DepositExchangeClient() {
     [],
   );
 
+  // Empty URL status defaults to All on exchange (verified creates would be hidden under Pending).
+  const exchangeStatusForApi = !filters.status?.trim() ? "all" : filters.status;
+
   const columnFilterValues = useMemo(
     () => ({
       ...filters,
-      status: depositStatusColumnSelectValue(filters.status),
+      status: depositStatusColumnSelectValue(exchangeStatusForApi),
     }),
-    [filters],
+    [filters, exchangeStatusForApi],
   );
 
   const handleColumnFilterChange = useCallback(
@@ -323,16 +372,119 @@ export function DepositExchangeClient() {
   );
 
   const fetcher = useCallback(async (params: Record<string, unknown>) => {
-    return listDepositsNormalized("exchange", params);
+    const res = await listDepositsNormalized("exchange", params);
+    if (!hasConsumedInitialListMetaRef.current) {
+      hasConsumedInitialListMetaRef.current = true;
+      const hint = res.meta.lastBankerDeposit;
+      if (hint?.bankId && bankIdRef.current === "") {
+        setBankId(hint.bankId);
+        setBankAutocompleteDefault({ value: hint.bankId, label: hint.bankName });
+      }
+    }
+    return res;
   }, []);
 
+  const resetCreateForm = useCallback(() => {
+    setSettlementAccountType("bank");
+    setBankId("");
+    setBankAutocompleteDefault(null);
+    setLiabilityPersonId("");
+    setPersonAutocompleteDefault(null);
+    setUtr("");
+    setMoney(defaultOperatedMoneyValue(platformCurrency));
+    setEntryAt(currentDateTimeLocalValue());
+    setCreatePlayerId("");
+    setCreateErrors({});
+  }, [platformCurrency]);
+
+  const onCreateSubmit = useCallback(async () => {
+    if (!platformCurrency) {
+      toast.error("Set platform currency in Profile first");
+      return;
+    }
+    const next: typeof createErrors = {};
+    if (settlementAccountType === "bank" && !bankId.trim()) next.bankId = "Bank is required.";
+    if (settlementAccountType === "person" && !liabilityPersonId.trim()) {
+      next.liabilityPersonId = "Liability person is required.";
+    }
+    if (!utr.trim()) next.utr = "Reference number is required.";
+    const amt = Number(money.amount);
+    const minUnit = getCurrencyMinUnit(money.operatedCurrency || platformCurrency);
+    if (!money.amount.trim() || Number.isNaN(amt) || amt < minUnit) {
+      next.amount = `Amount must be at least ${minUnit}.`;
+    } else if ((money.operatedCurrency || platformCurrency) !== platformCurrency) {
+      const rate = Number(money.exchangeRate);
+      if (!money.exchangeRate.trim() || !Number.isFinite(rate) || rate <= 0) {
+        next.amount = "Enter a valid exchange rate.";
+      }
+    }
+    if (!createPlayerId.trim()) next.playerId = "Trader is required.";
+    setCreateErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    const fx = toMoneyFxPayload(money, platformCurrency);
+    const payload: DepositCreateInput =
+      settlementAccountType === "bank"
+        ? {
+            settlementAccountType: "bank",
+            bankId: bankId.trim(),
+            utr: utr.trim(),
+            amount: fx.amount,
+            operatedCurrency: fx.operatedCurrency,
+            operatedAmount: fx.operatedAmount,
+            exchangeRate: fx.exchangeRate,
+            entryAt,
+            playerId: createPlayerId.trim(),
+            bonusAmount: 0,
+          }
+        : {
+            settlementAccountType: "person",
+            liabilityPersonId: liabilityPersonId.trim(),
+            utr: utr.trim(),
+            amount: fx.amount,
+            operatedCurrency: fx.operatedCurrency,
+            operatedAmount: fx.operatedAmount,
+            exchangeRate: fx.exchangeRate,
+            entryAt,
+            playerId: createPlayerId.trim(),
+            bonusAmount: 0,
+          };
+
+    setCreateLoading(true);
+    try {
+      await createDeposit(payload);
+      toast.success("Deposit recorded and verified.");
+      setUtr("");
+      setMoney(defaultOperatedMoneyValue(platformCurrency));
+      setEntryAt(currentDateTimeLocalValue());
+      setCreatePlayerId("");
+      setCreateErrors({});
+      // New rows are verified; ensure All so they appear, then refresh the table.
+      if ((filters.status ?? "").trim().toLowerCase() !== "all") {
+        setFilter("status", "all");
+      }
+      setTableKey((k) => k + 1);
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Failed to record deposit"));
+    } finally {
+      setCreateLoading(false);
+    }
+  }, [
+    platformCurrency,
+    settlementAccountType,
+    bankId,
+    liabilityPersonId,
+    utr,
+    money,
+    entryAt,
+    createPlayerId,
+    filters.status,
+    setFilter,
+  ]);
+
   const clearActionForm = useCallback(() => {
-    bonusManuallyAdjustedRef.current = false;
     setSelectedDeposit(null);
     setPlayerId("");
-    setBonus("0");
-    setPlayerBonusPercent(null);
-    setBonusPercentSource(null);
   }, []);
 
   const handleResetFilters = useCallback(() => {
@@ -355,7 +507,7 @@ export function DepositExchangeClient() {
       bankName: toOptionalFilterValue(filters.bankName || ""),
       bankName_op: toOptionalFilterValue(filters.bankName_op || ""),
       bankId: toOptionalFilterValue(filters.bankId || ""),
-      status: depositStatusApiParam(filters.status),
+      status: depositStatusApiParam(exchangeStatusForApi),
       amount: toOptionalFilterValue(filters.amount || ""),
       amount_to: toOptionalFilterValue(filters.amount_to || ""),
       amount_op: toOptionalFilterValue(filters.amount_op || ""),
@@ -367,7 +519,7 @@ export function DepositExchangeClient() {
       createdAt_to: toOptionalFilterValue(filters.createdAt_to || ""),
       createdAt_op: toOptionalFilterValue(filters.createdAt_op || ""),
     });
-  }, [handleExport, filters, sortBy, sortOrder]);
+  }, [handleExport, filters, sortBy, sortOrder, exchangeStatusForApi]);
 
   const onApprove = useCallback(async () => {
     if (!selectedDeposit) {
@@ -379,21 +531,12 @@ export function DepositExchangeClient() {
       return;
     }
     if (!playerId.trim()) {
-      toast.error("Select a player.");
-      return;
-    }
-    const bonusNum = Number(bonus);
-    if (Number.isNaN(bonusNum) || bonusNum < 0) {
-      toast.error("Bonus must be a non-negative number.");
-      return;
-    }
-    if (!Number.isInteger(bonusNum)) {
-      toast.error("Bonus must be a whole number (no decimals).");
+      toast.error("Select a trader.");
       return;
     }
     setActionLoading(selectedDeposit.id);
     try {
-      await exchangeActionApprove(selectedDeposit.id, playerId.trim(), bonusNum);
+      await exchangeActionApprove(selectedDeposit.id, playerId.trim(), 0);
       toast.success("Deposit settled and bank updated.");
       setTableKey((k) => k + 1);
       clearActionForm();
@@ -402,7 +545,7 @@ export function DepositExchangeClient() {
     } finally {
       setActionLoading(null);
     }
-  }, [selectedDeposit, playerId, bonus, clearActionForm]);
+  }, [selectedDeposit, playerId, clearActionForm]);
 
   const confirmReject = useCallback(async () => {
     if (!selectedDeposit) return;
@@ -455,188 +598,7 @@ export function DepositExchangeClient() {
   const handleRowClick = useCallback((row: unknown) => {
     const r = row as DepositRow;
     setSelectedDeposit(r);
-    if (isImportReadyDeposit(r)) {
-      bonusManuallyAdjustedRef.current = true;
-      setPlayerId(r.playerMongoId!.trim());
-      setBonus(String(Math.round(r.bonusAmount!)));
-      setPlayerBonusPercent(null);
-      setBonusPercentSource(null);
-    } else {
-      bonusManuallyAdjustedRef.current = false;
-      setPlayerId("");
-      setBonus("0");
-      setPlayerBonusPercent(null);
-      setBonusPercentSource(null);
-    }
-  }, []);
-
-  const handleVisibleRowsChange = useCallback((rows: unknown[]) => {
-    setVisibleRows(rows as DepositRow[]);
-  }, []);
-
-  const importReadyOnPage = useMemo(
-    () => visibleRows.filter(isImportReadyDeposit),
-    [visibleRows],
-  );
-
-  const bulkSelectedIds = useMemo(() => Object.keys(bulkSelection), [bulkSelection]);
-
-  const bulkSelectedRows = useMemo(() => Object.values(bulkSelection), [bulkSelection]);
-
-  const bulkSummary = useMemo(() => {
-    const amountTotal = bulkSelectedRows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-    const bonusTotal = bulkSelectedRows.reduce((sum, row) => sum + Number(row.bonusAmount ?? 0), 0);
-    return {
-      count: bulkSelectedRows.length,
-      amountTotal,
-      bonusTotal,
-      grandTotal: amountTotal + bonusTotal,
-      utrs: bulkSelectedRows.map((row) => row.utr).filter(Boolean),
-    };
-  }, [bulkSelectedRows]);
-
-  const normalizedStatusFilter = (filters.status ?? "").trim().toLowerCase();
-  const showBulkToolbar =
-    normalizedStatusFilter === "" || normalizedStatusFilter === "pending" || normalizedStatusFilter === "all";
-
-  const toggleBulkSelection = useCallback((row: DepositRow, checked: boolean) => {
-    setBulkSelection((prev) => {
-      const next = { ...prev };
-      if (checked) next[row.id] = row;
-      else delete next[row.id];
-      return next;
-    });
-  }, []);
-
-  const toggleSelectAllImportReadyOnPage = useCallback((checked: boolean) => {
-    if (!checked) {
-      setBulkSelection((prev) => {
-        const next = { ...prev };
-        for (const row of importReadyOnPage) delete next[row.id];
-        return next;
-      });
-      return;
-    }
-    setBulkSelection((prev) => {
-      const next = { ...prev };
-      for (const row of importReadyOnPage) next[row.id] = row;
-      return next;
-    });
-  }, [importReadyOnPage]);
-
-  const allImportReadyOnPageSelected =
-    importReadyOnPage.length > 0 && importReadyOnPage.every((row) => Boolean(bulkSelection[row.id]));
-
-  const bulkProgressPercent = useMemo(() => {
-    const total = Number(bulkProgress?.progress.totalRows ?? 0);
-    const processed = Number(bulkProgress?.progress.processedRows ?? 0);
-    if (total <= 0) return 0;
-    return Math.min(100, Math.max(0, Math.round((processed / total) * 100)));
-  }, [bulkProgress]);
-
-  const confirmBulkApprove = useCallback(async () => {
-    if (bulkSelectedIds.length === 0) return;
-    setBulkApproving(true);
-    try {
-      const created = await createBulkExchangeApproveJob(bulkSelectedIds);
-      setBulkJobId(created.jobId);
-      setBulkJobSelectionIds(bulkSelectedIds);
-      setBulkProgressOpen(true);
-      setBulkProgress((prev) => ({
-        id: created.jobId,
-        status: "queued",
-        createdBy: prev?.createdBy ?? "",
-        createdAt: prev?.createdAt ?? new Date().toISOString(),
-        progress: { totalRows: bulkSelectedIds.length, processedRows: 0, successRows: 0, failedRows: 0 },
-        errorSample: [],
-      }));
-      setBulkConfirmOpen(false);
-    } catch (e: unknown) {
-      toast.error(getApiErrorMessage(e, "Bulk approve failed."));
-    } finally {
-      setBulkApproving(false);
-    }
-  }, [bulkSelectedIds]);
-
-  useEffect(() => {
-    if (!bulkJobId) return;
-    let mounted = true;
-    let stopStream: (() => void) | null = null;
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-    const applyProgress = (job: DepositBulkExchangeApproveJobSummary) => {
-      if (!mounted) return;
-      setBulkProgress(job);
-      if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
-        if (stopStream) {
-          stopStream();
-          stopStream = null;
-        }
-        setBulkSelection({});
-        setTableKey((k) => k + 1);
-        if (selectedDeposit && bulkJobSelectionIds.includes(selectedDeposit.id)) {
-          clearActionForm();
-        }
-        if (job.status === "completed") {
-          toast.success(
-            `Settled ${job.progress.successRows} deposit${job.progress.successRows === 1 ? "" : "s"}${
-              job.progress.failedRows > 0 ? `; ${job.progress.failedRows} failed` : ""
-            }.`,
-          );
-        } else {
-          toast.error(job.failureReason || "Bulk approval job failed.");
-        }
-      }
-    };
-
-    const pollOnce = async () => {
-      try {
-        const snapshot = await getBulkExchangeApproveJob(bulkJobId);
-        applyProgress(snapshot);
-      } catch {
-        // Keep trying while stream/poll continues.
-      }
-    };
-
-    void pollOnce();
-    pollTimer = setInterval(() => {
-      void pollOnce();
-    }, 2000);
-
-    void streamBulkExchangeApproveJobEvents(bulkJobId, (eventPayload) => {
-      setBulkProgress((prev) => ({
-        ...(prev ?? {
-          id: bulkJobId,
-          createdBy: "",
-          createdAt: new Date().toISOString(),
-          errorSample: [],
-        }),
-        ...eventPayload,
-      }));
-      if (eventPayload.status === "completed" || eventPayload.status === "failed" || eventPayload.status === "cancelled") {
-        void pollOnce();
-      }
-    })
-      .then((stop) => {
-        stopStream = stop;
-      })
-      .catch(() => {
-        // Poll fallback is already active.
-      });
-
-    return () => {
-      mounted = false;
-      if (pollTimer) clearInterval(pollTimer);
-      if (stopStream) stopStream();
-    };
-  }, [bulkJobId, bulkJobSelectionIds, clearActionForm, selectedDeposit]);
-
-  const getRowClassName = useCallback((row: unknown) => {
-    return isImportReadyDeposit(row as DepositRow) ? "bg-green-50/90" : undefined;
+    setPlayerId(r.playerMongoId?.trim() || "");
   }, []);
 
   const playerDefaultOption = useMemo((): AutocompleteOption | null => {
@@ -646,50 +608,6 @@ export function DepositExchangeClient() {
     if (!label) return null;
     return { value: playerId.trim(), label };
   }, [playerId, selectedDeposit]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const deposit = selectedDeposit;
-    const pid = playerId.trim();
-    if (!deposit || (deposit.status !== "pending" && deposit.status !== "not_settled") || !pid) {
-      setPlayerBonusPercent(null);
-      setBonusPercentSource(null);
-      return;
-    }
-
-    void Promise.all([
-      getPlayerBonusProfile(pid),
-      listDepositsNormalized("exchange", {
-        page: 1,
-        limit: 1,
-        player: pid,
-        status: "all",
-      }),
-    ])
-      .then(([p, priorDeposits]) => {
-        if (cancelled) return;
-        const hasPriorNonRejected = (priorDeposits.meta?.total ?? 0) > 0;
-        const source: "first_deposit" | "regular" = hasPriorNonRejected ? "regular" : "first_deposit";
-        const pct = Number(
-          source === "first_deposit" ? p.firstDepositBonusPercentage : p.regularBonusPercentage,
-        );
-        setBonusPercentSource(source);
-        setPlayerBonusPercent(Number.isFinite(pct) ? pct : null);
-        if (!bonusManuallyAdjustedRef.current) {
-          setBonus(bonusAmountFromPercent(deposit.amount, Number.isFinite(pct) ? pct : 0));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPlayerBonusPercent(null);
-          setBonusPercentSource(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedDeposit?.id, selectedDeposit?.status, selectedDeposit?.amount, playerId]);
 
   const closeSidebar = useCallback(() => {
     clearActionForm();
@@ -711,24 +629,6 @@ export function DepositExchangeClient() {
   const columns = useMemo<PaginatedTableReferenceColumn[]>(
     () => [
       {
-        field: "_bulkSelect",
-        label: "",
-        sortable: false,
-        minWidth: 44,
-        render: (row: DepositRow) => {
-          if (!isImportReadyDeposit(row)) return null;
-          return (
-            <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-              <Checkbox
-                checked={Boolean(bulkSelection[row.id])}
-                onChange={(e) => toggleBulkSelection(row, e.target.checked)}
-                aria-label={`Select UTR ${row.utr}`}
-              />
-            </div>
-          );
-        },
-      },
-      {
         field: "bankName",
         label: "Bank holder",
         render: (row: DepositRow) => row.bankName,
@@ -741,7 +641,7 @@ export function DepositExchangeClient() {
       },
       {
         field: "utr",
-        label: "UTR",
+        label: "Reference Number",
         render: (row: DepositRow) => (
           <span className="font-mono text-xs">{row.utr}</span>
         ),
@@ -845,14 +745,145 @@ export function DepositExchangeClient() {
         },
       },
     ],
-    [bulkSelection, cachedUsers, loadCreatedByOptions, selectedId, toggleBulkSelection],
+    [cachedUsers, loadCreatedByOptions, selectedId],
   );
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col gap-6 pb-4">
+      <div className="w-full shrink-0">
+        <FormContainer
+          className="!flex-none"
+          title="Exchange deposit"
+          description="Record settlement bank or liable person and trader in one step."
+          contentOverflow="visible"
+        >
+          <div className="flex flex-col gap-4 px-5 py-4">
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="w-[180px]">
+                <FieldLabel className="mb-1 text-xs text-muted-foreground">Entry date & time *</FieldLabel>
+                <Input
+                  type="datetime-local"
+                  className="h-9 text-sm"
+                  value={entryAt}
+                  onChange={(e) => setEntryAt(e.target.value)}
+                />
+              </div>
+              <div className="w-[140px] space-y-1.5">
+                <FieldLabel className="mb-1 text-xs text-muted-foreground">Settlement *</FieldLabel>
+                <select
+                  className="w-full h-9 rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-sm"
+                  value={settlementAccountType}
+                  onChange={(e) => {
+                    const v = e.target.value === "person" ? "person" : "bank";
+                    setSettlementAccountType(v);
+                    setCreateErrors((prev) => {
+                      const n = { ...prev };
+                      delete n.bankId;
+                      delete n.liabilityPersonId;
+                      return n;
+                    });
+                  }}
+                  aria-label="Settlement account type"
+                >
+                  <option value="bank">Bank</option>
+                  <option value="person">Liability person</option>
+                </select>
+              </div>
+              {settlementAccountType === "bank" ? (
+                <div className="min-w-[200px] flex-1">
+                  <FieldLabel className="mb-1 text-xs text-muted-foreground">Bank *</FieldLabel>
+                  <AutocompleteField
+                    value={bankId}
+                    onChange={setBankId}
+                    loadOptions={loadBankOptions}
+                    placeholder="Search bank..."
+                    emptyText="No banks found"
+                    defaultOption={bankAutocompleteDefault}
+                  />
+                  <FieldError message={createErrors.bankId} />
+                </div>
+              ) : (
+                <div className="min-w-[200px] flex-1">
+                  <FieldLabel className="mb-1 text-xs text-muted-foreground">Liability person *</FieldLabel>
+                  <AutocompleteField
+                    value={liabilityPersonId}
+                    onChange={setLiabilityPersonId}
+                    loadOptions={loadLiabilityPersonOptions}
+                    placeholder="Search liability person..."
+                    emptyText="No persons found"
+                    defaultOption={personAutocompleteDefault}
+                  />
+                  <FieldError message={createErrors.liabilityPersonId} />
+                </div>
+              )}
+              <div className="w-[160px]">
+                <FieldLabel className="mb-1 text-xs text-muted-foreground">Reference Number *</FieldLabel>
+                <Input
+                  placeholder="Reference Number"
+                  className="h-9 text-sm"
+                  value={utr}
+                  onChange={(e) => setUtr(e.target.value)}
+                />
+                <FieldError message={createErrors.utr} />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="min-w-[400px] max-w-[600px] flex-1">
+                <OperatedMoneyFields
+                  value={money}
+                  onChange={setMoney}
+                  amountLabel="Amount *"
+                  roundMode="integer"
+                  amountInputMode="numeric"
+                  minAmount={1}
+                  idPrefix="deposit-exchange-create"
+                  compact
+                />
+                {createErrors.amount ? <FieldError message={createErrors.amount} /> : null}
+              </div>
+              <div className="min-w-[200px] flex-1">
+                <FieldLabel className="mb-1 text-xs text-muted-foreground">Trader *</FieldLabel>
+                <AutocompleteField
+                  value={createPlayerId}
+                  onChange={handleCreatePlayerIdChange}
+                  loadOptions={loadPlayerOptions}
+                  autoSelectSingleOption
+                  placeholder="Search trader…"
+                  emptyText="No traders found"
+                />
+                <FieldError message={createErrors.playerId} />
+              </div>
+            </div>
+          </div>
+          <FormActions>
+            <Button
+              type="button"
+              variant="danger"
+              startIcon={<IconX size={16} />}
+              onClick={resetCreateForm}
+              disabled={createLoading}
+              className="h-9 px-4"
+            >
+              Clear
+            </Button>
+            <Button
+              type="button"
+              variant="success"
+              startIcon={<IconCheck size={16} />}
+              onClick={() => void onCreateSubmit()}
+              disabled={createLoading}
+              className="h-9 px-4"
+            >
+              {createLoading ? "Saving…" : "Save"}
+            </Button>
+          </FormActions>
+        </FormContainer>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col">
       <ListingPageContainer
         title="Deposit / Exchange depositor"
-        description="Pending and not-settled banker deposits awaiting exchange action. Select a row to settle or reject."
+        description="Exchange deposit records. Use filters or export as needed."
         density="compact"
         fullWidth
         secondaryButtonLabel="Reset filters"
@@ -860,103 +891,16 @@ export function DepositExchangeClient() {
         exportButtonLabel={exporting ? "Exporting…" : "Export"}
         onExportClick={onExportClick}
         exportDisabled={exporting}
+        importButtonLabel="Import"
+        onImportClick={() => setImportDialogOpen(true)}
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          {/* Auto-refresh toggle */}
-          <div className="mb-3 flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${autoRefresh ? "bg-green-500" : "bg-gray-300"}`}
-            >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${autoRefresh ? "translate-x-[18px]" : "translate-x-[3px]"}`} />
-            </button>
-            <span className="text-xs font-medium text-gray-600">
-              Auto Refresh {autoRefresh ? <span className="text-green-600">(every 10s)</span> : "(off)"}
-            </span>
-          </div>
-
-          {/* Prompt banner when no row is selected */}
-          {!selectedDeposit && (
-            <div className="mb-3 flex shrink-0 items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-700">
-              <IconUser className="size-4 shrink-0" />
-              <span>
-                <strong>Tip:</strong> Click any <strong>pending</strong> or <strong>not settled</strong> row to open the settle /
-                reject panel.
-              </span>
-            </div>
-          )}
-
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">Quick status:</span>
-            <Button
-              type="button"
-              size="xs"
-              variant={filters.status === "all" ? "primary" : "secondary"}
-              onClick={() => setFilter("status", "all")}
-            >
-              All
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant={(filters.status || "") === "" || filters.status === "pending" ? "primary" : "secondary"}
-              onClick={() => setFilter("status", "pending")}
-            >
-              Pending
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant={filters.status === "not_settled" ? "primary" : "secondary"}
-              onClick={() => setFilter("status", "not_settled")}
-            >
-              Not Settled
-            </Button>
-          </div>
-
-          {showBulkToolbar && (
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50/60 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  label="Current page selection"
-                  checked={allImportReadyOnPageSelected}
-                  onChange={(e) => toggleSelectAllImportReadyOnPage(e.target.checked)}
-                  disabled={importReadyOnPage.length === 0}
-                />
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="secondary"
-                  disabled={importReadyOnPage.length === 0}
-                  onClick={() => toggleSelectAllImportReadyOnPage(true)}
-                >
-                  Select all green rows on this page ({importReadyOnPage.length})
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-600">
-                  {importReadyOnPage.length} import-ready on page · {bulkSelectedIds.length} selected
-                </span>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="success"
-                  disabled={bulkSelectedIds.length === 0 || bulkApproving}
-                  onClick={() => setBulkConfirmOpen(true)}
-                >
-                  Approve selected ({bulkSelectedIds.length})
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Table */}
           <PaginatedTableReference
             key={tableKey}
             columns={columns}
             fetcher={fetcher}
-            height="calc(100vh - 280px)"
+            height="min(520px, calc(100vh - 420px))"
             showSearch={false}
             showPagination={false}
             onTotalChange={setTotalCount}
@@ -968,7 +912,7 @@ export function DepositExchangeClient() {
               bankName: toOptionalFilterValue(filters.bankName || ""),
               bankName_op: toOptionalFilterValue(filters.bankName_op || ""),
               bankId: toOptionalFilterValue(filters.bankId || ""),
-              status: depositStatusApiParam(filters.status),
+              status: depositStatusApiParam(exchangeStatusForApi),
               amount: toOptionalFilterValue(filters.amount || ""),
               amount_to: toOptionalFilterValue(filters.amount_to || ""),
               amount_op: toOptionalFilterValue(filters.amount_op || ""),
@@ -988,10 +932,8 @@ export function DepositExchangeClient() {
             onRowsPerPageChange={setLimit}
             onSortChange={(field, order) => setSort(field, order)}
             onRowClick={handleRowClick}
-            onRowsChange={handleVisibleRowsChange}
             getRowKey={(row) => String((row as DepositRow).id)}
             selectedRowKey={selectedId}
-            getRowClassName={getRowClassName}
           />
           <PaginationControlsReference
             page={page - 1}
@@ -1003,6 +945,7 @@ export function DepositExchangeClient() {
           />
         </div>
       </ListingPageContainer>
+      </div>
 
       {/* ─── Action sidebar ─────────────────────────────────────────────── */}
       <DetailsSidebar
@@ -1010,7 +953,7 @@ export function DepositExchangeClient() {
         title="Exchange Action"
         subtitle={
           selectedDeposit
-            ? `UTR: ${selectedDeposit.utr ?? "—"}`
+            ? `Reference Number: ${selectedDeposit.utr ?? "—"}`
             : undefined
         }
         onClose={closeSidebar}
@@ -1021,13 +964,12 @@ export function DepositExchangeClient() {
             {/* Deposit info card */}
             <DepositDetailCard deposit={selectedDeposit} />
 
-            {/* Player + bonus fields */}
             <div className="space-y-3">
               <div>
                 <FieldLabel>
                   <span className="flex items-center gap-1.5">
                     <IconUser className="size-3.5" />
-                    Player *
+                    Trader *
                   </span>
                 </FieldLabel>
                 <AutocompleteField
@@ -1036,45 +978,11 @@ export function DepositExchangeClient() {
                   loadOptions={loadPlayerOptions}
                   defaultOption={playerDefaultOption}
                   autoSelectSingleOption
-                  placeholder="Search player…"
+                  placeholder="Search trader…"
                   disabled={!canApproveOnSelection}
                 />
                 {!playerId && canApproveOnSelection && (
-                  <p className="mt-1 text-xs text-amber-600">Player is required to approve.</p>
-                )}
-              </div>
-
-              <div>
-                <FieldLabel>
-                  <span className="flex items-center gap-1.5">
-                    <IconCurrencyRupee className="size-3.5" />
-                    Bonus
-                  </span>
-                </FieldLabel>
-                <Input
-                  type="number"
-                  min={0}
-                  step="1"
-                  value={bonus}
-                  onChange={(e) => {
-                    bonusManuallyAdjustedRef.current = true;
-                    setBonus(e.target.value);
-                  }}
-                  disabled={!canApproveOnSelection}
-                  placeholder="0"
-                />
-                {playerBonusPercent !== null && canApproveOnSelection && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Applied {bonusPercentSource === "first_deposit" ? "First Deposit" : "Regular"} Bonus %:{" "}
-                    {playerBonusPercent}%
-                    {selectedDeposit && (
-                      <>
-                        {" "}
-                        · Calculated:{" "}
-                        {formatWholeMoney(Number(bonusAmountFromPercent(selectedDeposit.amount, playerBonusPercent)))}
-                      </>
-                    )}
-                  </p>
+                  <p className="mt-1 text-xs text-amber-600">Trader is required to approve.</p>
                 )}
               </div>
             </div>
@@ -1135,108 +1043,6 @@ export function DepositExchangeClient() {
         )}
       </DetailsSidebar>
 
-      {bulkProgressOpen && bulkProgress && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4">
-          <div className="card w-full max-w-lg space-y-4 p-4">
-            <h3 className="text-lg font-semibold">Bulk settlement progress</h3>
-            <div className="space-y-2">
-              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${bulkProgressPercent}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-xs text-gray-600">
-                <span>
-                  {bulkProgress.progress.processedRows}/{bulkProgress.progress.totalRows} processed
-                </span>
-                <span>{bulkProgressPercent}%</span>
-              </div>
-            </div>
-            <dl className="grid grid-cols-2 gap-2 text-sm">
-              <dt className="text-gray-500">Success</dt>
-              <dd className="text-right font-semibold tabular-nums text-emerald-700">
-                {bulkProgress.progress.successRows}
-              </dd>
-              <dt className="text-gray-500">Failed</dt>
-              <dd className="text-right font-semibold tabular-nums text-red-600">
-                {bulkProgress.progress.failedRows}
-              </dd>
-              <dt className="text-gray-500">Status</dt>
-              <dd className="text-right font-medium capitalize">{bulkProgress.status}</dd>
-            </dl>
-            {bulkProgress.errorSample.length > 0 && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                <p className="mb-1 font-medium">Failure sample</p>
-                <p className="break-all">
-                  {bulkProgress.errorSample
-                    .slice(0, 3)
-                    .map((item) => item.error)
-                    .join("; ")}
-                </p>
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setBulkProgressOpen(false)}
-                disabled={bulkProgress.status === "processing" || bulkProgress.status === "queued"}
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {bulkConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4">
-          <div className="card w-full max-w-lg space-y-4 p-4">
-            <h3 className="text-lg font-semibold">Approve import-ready deposits</h3>
-            <p className="text-sm text-gray-600">
-              You are about to settle <strong>{bulkSummary.count}</strong> pending deposit
-              {bulkSummary.count === 1 ? "" : "s"} using the player and bonus already stored from import.
-            </p>
-            <dl className="grid grid-cols-2 gap-2 text-sm">
-              <dt className="text-gray-500">Deposit amount</dt>
-              <dd className="text-right font-medium tabular-nums">{formatWholeMoney(bulkSummary.amountTotal)}</dd>
-              <dt className="text-gray-500">Bonus total</dt>
-              <dd className="text-right font-medium tabular-nums">{formatWholeMoney(bulkSummary.bonusTotal)}</dd>
-              <dt className="text-gray-500">Grand total</dt>
-              <dd className="text-right font-semibold tabular-nums">{formatWholeMoney(bulkSummary.grandTotal)}</dd>
-            </dl>
-            {bulkSummary.utrs.length > 0 && (
-              <div className="rounded-md border border-[var(--border)] bg-slate-50 px-3 py-2 text-xs text-gray-700">
-                <p className="mb-1 font-medium">UTRs</p>
-                <p className="font-mono break-all">
-                  {bulkSummary.utrs.slice(0, 5).join(", ")}
-                  {bulkSummary.utrs.length > 5 ? ` … and ${bulkSummary.utrs.length - 5} more` : ""}
-                </p>
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={bulkApproving}
-                onClick={() => setBulkConfirmOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="success"
-                loading={bulkApproving}
-                onClick={() => void confirmBulkApprove()}
-              >
-                Confirm and settle all
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ─── Reject confirmation dialog ──────────────────────────────────── */}
       <ConfirmSensitiveActionDialog
         title="Reject deposit"
@@ -1253,6 +1059,12 @@ export function DepositExchangeClient() {
         }}
         onConfirm={() => void confirmReject()}
       />
-    </>
+
+      <DepositImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={() => setTableKey((k) => k + 1)}
+      />
+    </div>
   );
 }
