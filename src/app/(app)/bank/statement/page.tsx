@@ -28,6 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formControlFocus } from "@/lib/formControlClasses";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { formatScaledMoney } from "@/lib/formatMoney";
+import { bankDisplayLabel } from "@/lib/constants/bankMethods";
 import {
   currentDateTimeLocalValue,
   dateTimeLocalValueToUtcIso,
@@ -64,10 +65,21 @@ export default function BankStatementPage() {
   const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
       const res = await listBanksRaw(1, 40); // passing page and limit manually, simplistic fallback
-      return res.data.map((b: any) => ({
-        value: b._id || b.id,
-        label: `${b.holderName} - ${b.bankName} (${String(b.accountNumber).slice(-4)})`,
-      }));
+      const search = query.trim().toLowerCase();
+      return res.data
+        .map((b) => {
+          const row = b as Record<string, unknown>;
+          return {
+            value: String(row._id ?? row.id ?? ""),
+            label: bankDisplayLabel({
+              method: String(row.method ?? ""),
+              holderName: String(row.holderName ?? ""),
+              bankName: String(row.bankName ?? ""),
+              accountNumber: String(row.accountNumber ?? ""),
+            }),
+          };
+        })
+        .filter((option) => option.value && (!search || option.label.toLowerCase().includes(search)));
     } catch {
       return [];
     }
@@ -403,10 +415,11 @@ export default function BankStatementPage() {
           {/* Statement Header / Letterhead */}
           <div className="p-6 border-b border-slate-200 bg-slate-50/50 print:bg-white flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{ledger.bank.holderName}</h2>
-              <p className="text-slate-600 font-medium text-lg mt-0.5">{ledger.bank.bankName}</p>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                {ledger.bank.displayName || bankDisplayLabel(ledger.bank)}
+              </h2>
               <div className="flex items-center gap-3 mt-3 text-sm text-slate-500">
-                <span>Account No: <strong className="text-slate-700 font-mono">{ledger.bank.accountNumber}</strong></span>
+                <span>Method Account Statement</span>
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
                 <span>Period: <strong className="text-slate-700">{fromDate ? new Date(fromDate).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year:'numeric'}) : 'Start'}</strong> to <strong className="text-slate-700">{toDate ? new Date(toDate).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year:'numeric'}) : 'Today'}</strong></span>
                 <span className="w-1 h-1 rounded-full bg-slate-300" />

@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
 import type { BankCreateInput, BankRow } from "@/types/bank";
+import { bankDisplayLabel } from "@/lib/constants/bankMethods";
 
 function toOptionalParam(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
@@ -35,10 +36,17 @@ function normalizeBank(row: Record<string, unknown>): BankRow {
   return {
     _id: id,
     id,
+    method: row.method === "crypto" || row.method === "bank_transfer" || row.method === "sgpay" || row.method === "trustpay" || row.method === "card_entry" ? row.method : undefined,
     holderName: String(row.holderName ?? ""),
     bankName: String(row.bankName ?? ""),
     accountNumber: String(row.accountNumber ?? ""),
     ifsc: String(row.ifsc ?? ""),
+    displayName: bankDisplayLabel({
+      method: String(row.method ?? ""),
+      holderName: String(row.holderName ?? ""),
+      bankName: String(row.bankName ?? ""),
+      accountNumber: String(row.accountNumber ?? ""),
+    }),
     openingBalance: Number(row.openingBalance ?? 0),
     currentBalance: row.currentBalance != null ? Number(row.currentBalance) : undefined,
     closingBalanceActual:
@@ -74,7 +82,8 @@ export async function listBanksNormalized(params: Record<string, unknown>): Prom
       | "accountNumber"
       | "ifsc"
       | "openingBalance"
-      | "status";
+      | "status"
+      | "method";
   const sortOrder = str(params, "sortOrder") === "asc" ? "asc" : "desc";
 
   const response = await apiClient.get<{
@@ -88,6 +97,7 @@ export async function listBanksNormalized(params: Record<string, unknown>): Prom
       sortBy,
       sortOrder,
       search: toOptionalParam(str(params, "q")) || undefined,
+      method: toOptionalParam(str(params, "method")),
       holderName: toOptionalParam(str(params, "holderName")),
       holderName_op: toOptionalParam(str(params, "holderName_op")),
       bankName: toOptionalParam(str(params, "bankName")),
@@ -130,7 +140,8 @@ export async function exportBanks(params: Record<string, unknown>): Promise<Blob
       | "accountNumber"
       | "ifsc"
       | "openingBalance"
-      | "status";
+      | "status"
+      | "method";
   const sortOrder = str(params, "sortOrder") === "asc" ? "asc" : "desc";
 
   const response = await apiClient.get("/bank/export", {
@@ -140,6 +151,7 @@ export async function exportBanks(params: Record<string, unknown>): Promise<Blob
       sortBy,
       sortOrder,
       search: toOptionalParam(str(params, "q")) || undefined,
+      method: toOptionalParam(str(params, "method")),
       holderName: toOptionalParam(str(params, "holderName")),
       holderName_op: toOptionalParam(str(params, "holderName_op")),
       bankName: toOptionalParam(str(params, "bankName")),
@@ -193,9 +205,11 @@ export type BankLedgerRow = {
 export type BankLedgerResponse = {
   bank: {
     _id: string;
+    method?: string;
     holderName: string;
     bankName: string;
     accountNumber: string;
+    displayName?: string;
     openingBalance: number;
     currentBalance: number;
   };

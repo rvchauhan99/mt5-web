@@ -3,6 +3,7 @@ import { apiClient } from "./apiClient";
 export type LookupBankOption = {
   id: string;
   label: string;
+  method?: string;
   holderName: string;
   bankName: string;
   accountNumber: string;

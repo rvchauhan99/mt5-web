@@ -1,10 +1,9 @@
 export type BankStatus = "active" | "deactive";
+export type BankMethod = "crypto" | "bank_transfer" | "sgpay" | "trustpay" | "card_entry";
 
 export type BankCreateInput = {
-  holderName: string;
-  bankName: string;
-  accountNumber: string;
-  ifsc: string;
+  method: BankMethod;
+  name?: string;
   openingBalance: number;
   openingOperatedCurrency?: string;
   openingOperatedAmount?: number;
@@ -15,10 +14,12 @@ export type BankCreateInput = {
 export type BankRow = {
   _id: string;
   id: string;
+  method?: BankMethod;
   holderName: string;
   bankName: string;
   accountNumber: string;
   ifsc: string;
+  displayName?: string;
   openingBalance: number;
   openingOperatedCurrency?: string;
   openingOperatedAmount?: number;
