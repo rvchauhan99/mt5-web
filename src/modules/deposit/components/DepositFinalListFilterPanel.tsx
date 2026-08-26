@@ -39,6 +39,7 @@ const DateField = DateFieldReference as ComponentType<{
 import { AutocompleteField } from "@/components/common/AutocompleteField";
 import { listBankLookupOptions, listPlayerLookupOptions } from "@/services/lookupService";
 import { userService } from "@/services/userService";
+import { filterDepositBanks } from "@/modules/withdrawal/withdrawalPayoutBankMethodFilter";
 import {
   DEPOSIT_FINAL_FILTER_KEYS,
   emptyDepositFinalFilters,
@@ -182,7 +183,7 @@ export function DepositFinalListFilterPanel({
   }, []);
 
   const loadBankOptions = useCallback(async (query: string) => {
-    const rows = await listBankLookupOptions({ q: query || undefined, limit: 20 });
+    const rows = filterDepositBanks(await listBankLookupOptions({ q: query || undefined, limit: 20 }));
     return rows.map((row) => ({
       value: row.id,
       label: bankLabel(row),

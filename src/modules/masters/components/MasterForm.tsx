@@ -12,6 +12,8 @@ import { validateMasterPayload } from "@/lib/mastersSchemas";
 import { SUPPORTED_CURRENCIES } from "@/lib/currencies";
 
 function formatFieldLabel(name: string): string {
+  if (name === "isActiveForWithdrawalPayout") return "Active for withdrawal payout bank";
+  if (name === "isActiveForDeposit") return "Active for deposit bank";
   const spaced = name.replace(/([A-Z])/g, " $1").trim();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
@@ -31,7 +33,12 @@ function buildInitial(
       continue;
     }
     if (f.type === "BOOLEAN") {
-      base[f.name] = f.name === "isActive" ? true : false;
+      base[f.name] =
+        f.name === "isActive" ||
+        f.name === "isActiveForWithdrawalPayout" ||
+        f.name === "isActiveForDeposit"
+          ? true
+          : false;
     } else if (f.name === "reasonType") {
       base[f.name] = "general";
     } else if (f.type === "INTEGER" || f.type === "DECIMAL") {

@@ -47,6 +47,8 @@ export const createPaymentMethodBodySchema = z
       z.string().max(10000).trim().optional(),
     ),
     isActive: z.boolean().optional(),
+    isActiveForWithdrawalPayout: z.boolean().optional(),
+    isActiveForDeposit: z.boolean().optional(),
   })
   .strict();
 

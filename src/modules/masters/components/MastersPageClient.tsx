@@ -135,7 +135,16 @@ export function MastersPageClient() {
       }
       const result = await listMastersNormalized(selectedMaster.modelKey, params);
       setFields((prev) => {
-        const next = result.fields;
+        let next = result.fields;
+        if (selectedMaster.modelKey === "paymentMethod") {
+          const ensureBoolean = (name: string) => {
+            if (!next.some((f) => f.name === name)) {
+              next = [...next, { name, type: "BOOLEAN", required: false }];
+            }
+          };
+          ensureBoolean("isActiveForWithdrawalPayout");
+          ensureBoolean("isActiveForDeposit");
+        }
         if (
           prev.length === next.length &&
           prev.every((p, i) => {

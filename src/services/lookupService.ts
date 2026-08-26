@@ -4,6 +4,9 @@ export type LookupBankOption = {
   id: string;
   label: string;
   method?: string;
+  isActive?: boolean;
+  isActiveForWithdrawalPayout?: boolean;
+  isActiveForDeposit?: boolean;
   holderName: string;
   bankName: string;
   accountNumber: string;
@@ -26,6 +29,8 @@ export type LookupPaymentMethodOption = {
   name: string;
   code: string;
   description?: string;
+  isActiveForWithdrawalPayout?: boolean;
+  isActiveForDeposit?: boolean;
 };
 
 export type LookupPlayerOption = {
