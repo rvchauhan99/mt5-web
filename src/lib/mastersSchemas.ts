@@ -35,6 +35,23 @@ export const createExpenseTypeBodySchema = z
 
 export const updateExpenseTypeBodySchema = createExpenseTypeBodySchema.partial().strict();
 
+export const createPaymentMethodBodySchema = z
+  .object({
+    name: z.string().min(1).max(500).trim(),
+    code: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? undefined : v),
+      z.string().max(100).trim().optional(),
+    ),
+    description: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? undefined : v),
+      z.string().max(10000).trim().optional(),
+    ),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+export const updatePaymentMethodBodySchema = createPaymentMethodBodySchema.partial().strict();
+
 const currencyEnum = z.enum(SUPPORTED_CURRENCIES);
 
 export const createExchangeRateBodySchema = z
@@ -77,7 +94,7 @@ export const updateExchangeRateBodySchema = z
     }
   });
 
-export type MasterModelKey = "reason" | "expenseType" | "exchangeRate";
+export type MasterModelKey = "reason" | "expenseType" | "exchangeRate" | "paymentMethod";
 
 export function validateMasterPayload(
   modelKey: MasterModelKey,
@@ -93,9 +110,13 @@ export function validateMasterPayload(
         ? mode === "create"
           ? createExpenseTypeBodySchema
           : updateExpenseTypeBodySchema
-        : mode === "create"
-          ? createExchangeRateBodySchema
-          : updateExchangeRateBodySchema;
+        : modelKey === "paymentMethod"
+          ? mode === "create"
+            ? createPaymentMethodBodySchema
+            : updatePaymentMethodBodySchema
+          : mode === "create"
+            ? createExchangeRateBodySchema
+            : updateExchangeRateBodySchema;
 
   const result = schema.safeParse(payload);
   if (result.success) {

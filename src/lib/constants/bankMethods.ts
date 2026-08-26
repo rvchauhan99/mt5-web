@@ -1,7 +1,6 @@
 export const BANK_METHODS = ["crypto", "bank_transfer", "sgpay", "trustpay", "card_entry"] as const;
-export type BankMethod = (typeof BANK_METHODS)[number];
 
-export const BANK_METHOD_LABELS: Record<BankMethod, string> = {
+export const BANK_METHOD_LABELS: Record<(typeof BANK_METHODS)[number], string> = {
   crypto: "Crypto",
   bank_transfer: "Bank Transfer",
   sgpay: "SGPay",
@@ -9,12 +8,16 @@ export const BANK_METHOD_LABELS: Record<BankMethod, string> = {
   card_entry: "Card Entry",
 };
 
-export function isBankMethod(value: unknown): value is BankMethod {
-  return typeof value === "string" && (BANK_METHODS as readonly string[]).includes(value);
-}
-
 export function bankMethodLabel(method: unknown): string {
-  return isBankMethod(method) ? BANK_METHOD_LABELS[method] : "";
+  if (typeof method !== "string" || !method.trim()) return "";
+  const key = method.trim() as (typeof BANK_METHODS)[number];
+  if ((BANK_METHODS as readonly string[]).includes(key)) {
+    return BANK_METHOD_LABELS[key];
+  }
+  return method
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function bankDisplayLabel(row: {

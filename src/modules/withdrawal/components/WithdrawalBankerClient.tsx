@@ -49,6 +49,7 @@ import type { WithdrawalBankerPayoutInput, WithdrawalBulkApproveJobSummary, With
 import { formatDateTimeForUser } from "@/lib/userTimezone";
 import { useApprovalQueueAutoRefresh } from "@/hooks/useApprovalQueueAutoRefresh";
 import { isImportReadyWithdrawal } from "@/modules/withdrawal/withdrawalImportReady";
+import { filterWithdrawalPayoutBanks } from "@/modules/withdrawal/withdrawalPayoutBankMethodFilter";
 
 const COLUMN_FILTER_KEYS = [
   "utr",
@@ -315,7 +316,7 @@ export function WithdrawalBankerClient() {
 
   const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
-      const rows = await listBankLookupOptions({ q: query || undefined, limit: 25 });
+      const rows = filterWithdrawalPayoutBanks(await listBankLookupOptions({ q: query || undefined, limit: 25 }));
       return rows.map((b) => ({
         value: b.id,
         label: b.label,

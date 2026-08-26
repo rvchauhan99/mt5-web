@@ -4,7 +4,6 @@ import React from "react";
 import {
   IconArrowUpRight,
   IconArrowDownRight,
-  IconGift,
   IconTrendingUp,
   IconTrendingDown,
   IconReceipt,
@@ -258,24 +257,7 @@ export function DashboardKPIs({ summary, loading = false }: Props) {
         }
       />
 
-      {/* 3. Net Bonus */}
-      <KPICard
-        loading={loading}
-        title="Net Bonus (D − W)"
-        value={fmt((d?.bonusTotal ?? 0) - (w?.reverseBonusTotal ?? 0))}
-        subtitle="Deposit bonuses minus reverse bonuses"
-        icon={<IconGift className="w-5 h-5 text-amber-500" />}
-        iconBg="bg-amber-50"
-        valueColor="text-amber-700"
-        footer={
-          <div className="flex items-center justify-between">
-            <span>Given: <strong className="text-emerald-500">{fmt(d?.bonusTotal ?? 0)}</strong></span>
-            <span>Recovered: <strong className="text-rose-500">{fmt(w?.reverseBonusTotal ?? 0)}</strong></span>
-          </div>
-        }
-      />
-
-      {/* 4. Gross P&L */}
+      {/* Gross P&L */}
       <KPICard
         loading={loading}
         title="Gross P & L"

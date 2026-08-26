@@ -16,12 +16,15 @@ import {
 } from "@/components/common/OperatedMoneyFields";
 import { usePlatformSettings } from "@/context/PlatformSettingsContext";
 import { createBank } from "@/services/bankService";
+import {
+  listPaymentMethodLookupOptions,
+  type LookupPaymentMethodOption,
+} from "@/services/lookupService";
 import type { BankCreateInput } from "@/types/bank";
 import { getApiErrorMessage } from "@/lib/apiError";
-import { BANK_METHOD_LABELS, BANK_METHODS } from "@/lib/constants/bankMethods";
 
 const initialState: BankCreateInput = {
-  method: "bank_transfer",
+  method: "",
   openingBalance: 0,
   status: "active",
 };
@@ -31,6 +34,8 @@ export function BankAddClient() {
   const [form, setForm] = useState<BankCreateInput>(initialState);
   const [openingMoney, setOpeningMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
   const [loading, setLoading] = useState(false);
+  const [methodsLoading, setMethodsLoading] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState<LookupPaymentMethodOption[]>([]);
   const [errors, setErrors] = useState<{
     method?: string;
     openingBalance?: string;
@@ -43,8 +48,36 @@ export function BankAddClient() {
     );
   }, [platformCurrency]);
 
+  useEffect(() => {
+    let active = true;
+    setMethodsLoading(true);
+    listPaymentMethodLookupOptions({ limit: 100 })
+      .then((rows) => {
+        if (!active) return;
+        setPaymentMethods(rows);
+        setForm((prev) => {
+          if (prev.method) return prev;
+          const first = rows[0]?.code || "";
+          return first ? { ...prev, method: first } : prev;
+        });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        toast.error(getApiErrorMessage(error, "Failed to load payment methods"));
+      })
+      .finally(() => {
+        if (active) setMethodsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const reset = () => {
-    setForm(initialState);
+    setForm({
+      ...initialState,
+      method: paymentMethods[0]?.code || "",
+    });
     setOpeningMoney(defaultOperatedMoneyValue(platformCurrency));
     setErrors({});
   };
@@ -55,7 +88,7 @@ export function BankAddClient() {
       return;
     }
     const nextErrors: typeof errors = {};
-    if (!form.method) nextErrors.method = "Payment method is required.";
+    if (!form.method.trim()) nextErrors.method = "Payment method is required.";
     const operatedAmt = openingMoney.amount.trim() === "" ? 0 : Number(openingMoney.amount);
     if (Number.isNaN(operatedAmt)) {
       nextErrors.openingBalance = "Opening balance is required.";
@@ -80,7 +113,7 @@ export function BankAddClient() {
     setLoading(true);
     try {
       await createBank({
-        method: form.method,
+        method: form.method.trim(),
         status: form.status,
         openingBalance: fx.amount,
         openingOperatedCurrency: fx.operatedCurrency,
@@ -100,20 +133,27 @@ export function BankAddClient() {
     <div className="flex min-h-0 flex-1 flex-col gap-6 pb-4">
       <FormContainer
         title="Add Payment Account"
-        description="Create a payment account with opening balance."
+        description="Create a payment account with opening balance. Manage methods in Masters → Payment Method."
       >
         <FormGrid>
           <div>
             <FieldLabel>Payment method *</FieldLabel>
             <Select
               value={form.method}
-              onChange={(e) => setForm((p) => ({ ...p, method: e.target.value as BankCreateInput["method"] }))}
+              onChange={(e) => setForm((p) => ({ ...p, method: e.target.value }))}
+              disabled={methodsLoading || paymentMethods.length === 0}
             >
-              {BANK_METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {BANK_METHOD_LABELS[method]}
+              {paymentMethods.length === 0 ? (
+                <option value="">
+                  {methodsLoading ? "Loading…" : "No payment methods — add in Masters"}
                 </option>
-              ))}
+              ) : (
+                paymentMethods.map((method) => (
+                  <option key={method.id} value={method.code}>
+                    {method.label}
+                  </option>
+                ))
+              )}
             </Select>
             <FieldError message={errors.method} />
           </div>
@@ -147,7 +187,7 @@ export function BankAddClient() {
             variant="success"
             startIcon={<IconCheck size={18} />}
             onClick={onSubmit}
-            disabled={loading}
+            disabled={loading || methodsLoading || paymentMethods.length === 0}
           >
             {loading ? "Saving…" : "Save"}
           </Button>

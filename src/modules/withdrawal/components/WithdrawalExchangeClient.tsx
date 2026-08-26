@@ -52,6 +52,7 @@ import {
 } from "@/modules/withdrawal/withdrawalListingStatusFilter";
 import { useApprovalQueueAutoRefresh } from "@/hooks/useApprovalQueueAutoRefresh";
 import { currentDateTimeLocalValue, formatDateTimeForUser } from "@/lib/userTimezone";
+import { filterWithdrawalPayoutBanks } from "@/modules/withdrawal/withdrawalPayoutBankMethodFilter";
 import { WithdrawalImportDialog } from "./WithdrawalImportDialog";
 
 const COLUMN_FILTER_KEYS = [
@@ -140,12 +141,17 @@ export function WithdrawalExchangeClient() {
   const [accountHolderName, setAccountHolderName] = useState("");
   const [bankName, setBankName] = useState("");
   const [ifsc, setIfsc] = useState("");
+  const [cryptoWalletAddress, setCryptoWalletAddress] = useState("");
+  const [cryptoNetwork, setCryptoNetwork] = useState("");
+  const [cryptoAsset, setCryptoAsset] = useState("");
   const [money, setMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
   const [requestedAt, setRequestedAt] = useState(currentDateTimeLocalValue());
   const [savedPreset, setSavedPreset] = useState("");
   const [savedRows, setSavedRows] = useState<SavedWithdrawalAccount[]>([]);
   const [payoutSettlementType, setPayoutSettlementType] = useState<WithdrawalPayoutSettlementType>("bank");
   const [payoutBankId, setPayoutBankId] = useState("");
+  const [payoutBankMethod, setPayoutBankMethod] = useState("");
+  const [bankMethodById, setBankMethodById] = useState<Record<string, string>>({});
   const [bankAutocompleteDefault, setBankAutocompleteDefault] = useState<AutocompleteOption | null>(null);
   const [liabilityPersonId, setLiabilityPersonId] = useState("");
   const [payoutPersonAutocompleteDefault, setPayoutPersonAutocompleteDefault] =
@@ -164,6 +170,15 @@ export function WithdrawalExchangeClient() {
   useEffect(() => {
     payoutBankIdRef.current = payoutBankId;
   }, [payoutBankId]);
+
+  useEffect(() => {
+    if (!payoutBankId.trim()) {
+      setPayoutBankMethod("");
+      return;
+    }
+    const method = bankMethodById[payoutBankId];
+    if (method) setPayoutBankMethod(method);
+  }, [payoutBankId, bankMethodById]);
 
   useApprovalQueueAutoRefresh({
     module: "withdrawal",
@@ -216,7 +231,14 @@ export function WithdrawalExchangeClient() {
 
   const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
-      const rows = await listBankLookupOptions({ q: query || undefined, limit: 25 });
+      const rows = filterWithdrawalPayoutBanks(await listBankLookupOptions({ q: query || undefined, limit: 25 }));
+      setBankMethodById((prev) => {
+        const next = { ...prev };
+        for (const b of rows) {
+          if (b.method) next[b.id] = b.method;
+        }
+        return next;
+      });
       return rows.map((b) => ({
         value: b.id,
         label: b.label,
@@ -225,6 +247,12 @@ export function WithdrawalExchangeClient() {
       return [];
     }
   }, []);
+
+  const isCryptoPayout =
+    Boolean(editingId && cryptoWalletAddress.trim()) ||
+    (!editingId &&
+      payoutSettlementType === "bank" &&
+      (payoutBankMethod === "crypto" || bankMethodById[payoutBankId] === "crypto"));
 
   const loadLiabilityPersonOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
@@ -287,10 +315,16 @@ export function WithdrawalExchangeClient() {
     }
     const next: Record<string, string | undefined> = {};
     if (!playerId.trim()) next.playerId = "Trader is required.";
-    if (!accountNumber.trim()) next.accountNumber = "Account number is required.";
-    if (!accountHolderName.trim()) next.accountHolderName = "Account holder name is required.";
-    if (!bankName.trim()) next.bankName = "Bank name is required.";
-    if (!ifsc.trim()) next.ifsc = "IFSC is required.";
+    if (isCryptoPayout) {
+      if (!cryptoWalletAddress.trim()) next.cryptoWalletAddress = "Wallet address is required.";
+      if (!cryptoNetwork.trim()) next.cryptoNetwork = "Network is required.";
+      if (!cryptoAsset.trim()) next.cryptoAsset = "Asset is required.";
+    } else {
+      if (!accountNumber.trim()) next.accountNumber = "Account number is required.";
+      if (!accountHolderName.trim()) next.accountHolderName = "Account holder name is required.";
+      if (!bankName.trim()) next.bankName = "Bank name is required.";
+      if (!ifsc.trim()) next.ifsc = "IFSC is required.";
+    }
     const amt = Number(money.amount);
     const minUnit = getCurrencyMinUnit(money.operatedCurrency || platformCurrency);
     if (!money.amount.trim() || Number.isNaN(amt) || amt < minUnit) {
@@ -319,10 +353,13 @@ export function WithdrawalExchangeClient() {
     try {
       if (editingId) {
         await updateWithdrawal(editingId, {
-          accountNumber: accountNumber.trim(),
-          accountHolderName: accountHolderName.trim(),
-          bankName: bankName.trim(),
-          ifsc: ifsc.trim(),
+          accountNumber: accountNumber.trim() || undefined,
+          accountHolderName: accountHolderName.trim() || undefined,
+          bankName: bankName.trim() || undefined,
+          ifsc: ifsc.trim() || undefined,
+          cryptoWalletAddress: cryptoWalletAddress.trim() || undefined,
+          cryptoNetwork: cryptoNetwork.trim() || undefined,
+          cryptoAsset: cryptoAsset.trim() || undefined,
           amount: fx.amount,
           operatedCurrency: fx.operatedCurrency,
           operatedAmount: fx.operatedAmount,
@@ -331,14 +368,27 @@ export function WithdrawalExchangeClient() {
         });
         toast.success("Withdrawal updated successfully.");
       } else {
+        const destinationFields = isCryptoPayout
+          ? {
+              accountNumber: accountNumber.trim() || undefined,
+              accountHolderName: accountHolderName.trim() || undefined,
+              bankName: bankName.trim() || undefined,
+              ifsc: ifsc.trim() || undefined,
+              cryptoWalletAddress: cryptoWalletAddress.trim(),
+              cryptoNetwork: cryptoNetwork.trim(),
+              cryptoAsset: cryptoAsset.trim(),
+            }
+          : {
+              accountNumber: accountNumber.trim(),
+              accountHolderName: accountHolderName.trim(),
+              bankName: bankName.trim(),
+              ifsc: ifsc.trim(),
+            };
         const createPayload: WithdrawalCreateInput =
           payoutSettlementType === "bank"
             ? {
                 playerId: playerId.trim(),
-                accountNumber: accountNumber.trim(),
-                accountHolderName: accountHolderName.trim(),
-                bankName: bankName.trim(),
-                ifsc: ifsc.trim(),
+                ...destinationFields,
                 amount: fx.amount,
                 operatedCurrency: fx.operatedCurrency,
                 operatedAmount: fx.operatedAmount,
@@ -351,10 +401,7 @@ export function WithdrawalExchangeClient() {
               }
             : {
                 playerId: playerId.trim(),
-                accountNumber: accountNumber.trim(),
-                accountHolderName: accountHolderName.trim(),
-                bankName: bankName.trim(),
-                ifsc: ifsc.trim(),
+                ...destinationFields,
                 amount: fx.amount,
                 operatedCurrency: fx.operatedCurrency,
                 operatedAmount: fx.operatedAmount,
@@ -373,6 +420,9 @@ export function WithdrawalExchangeClient() {
       setAccountHolderName("");
       setBankName("");
       setIfsc("");
+      setCryptoWalletAddress("");
+      setCryptoNetwork("");
+      setCryptoAsset("");
       setMoney(defaultOperatedMoneyValue(platformCurrency));
       setRequestedAt(currentDateTimeLocalValue());
       setSavedPreset("");
@@ -393,6 +443,9 @@ export function WithdrawalExchangeClient() {
     setAccountHolderName(row.accountHolderName || "");
     setBankName(row.bankName || "");
     setIfsc(row.ifsc || "");
+    setCryptoWalletAddress(row.cryptoWalletAddress || "");
+    setCryptoNetwork(row.cryptoNetwork || "");
+    setCryptoAsset(row.cryptoAsset || "");
     setMoney({
       amount: String(row.operatedAmount ?? row.amount),
       operatedCurrency: row.operatedCurrency || platformCurrency || "",
@@ -408,10 +461,16 @@ export function WithdrawalExchangeClient() {
     setAccountHolderName("");
     setBankName("");
     setIfsc("");
+    setCryptoWalletAddress("");
+    setCryptoNetwork("");
+    setCryptoAsset("");
     setMoney(defaultOperatedMoneyValue(platformCurrency));
     setRequestedAt(currentDateTimeLocalValue());
     setSavedPreset("");
     setPayoutSettlementType("bank");
+    setPayoutBankId("");
+    setPayoutBankMethod("");
+    setBankAutocompleteDefault(null);
     setLiabilityPersonId("");
     setPayoutPersonAutocompleteDefault(null);
     setUtr("");
@@ -500,12 +559,27 @@ export function WithdrawalExchangeClient() {
         label: "Account / Bank",
         minWidth: 200,
         sortable: false,
-        render: (row: WithdrawalRow) => (
-          <div className="text-sm">
-            <div>{row.accountNumber || "—"}</div>
-            <div className="text-xs text-gray-500">{row.bankName}</div>
-          </div>
-        ),
+        render: (row: WithdrawalRow) => {
+          const wallet = String(row.cryptoWalletAddress || "").trim();
+          if (wallet) {
+            const network = String(row.cryptoNetwork || "").trim();
+            const asset = String(row.cryptoAsset || "").trim();
+            return (
+              <div className="text-sm">
+                <div className="break-all">{wallet}</div>
+                <div className="text-xs text-gray-500">
+                  {[asset, network].filter(Boolean).join(" · ") || row.bankName || "Crypto"}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div className="text-sm">
+              <div>{row.accountNumber || "—"}</div>
+              <div className="text-xs text-gray-500">{row.bankName}</div>
+            </div>
+          );
+        },
       },
       {
         field: "bankName",
@@ -640,7 +714,7 @@ export function WithdrawalExchangeClient() {
           description={
             editingId
               ? "Update destination account and amount for a pending request. Payout is set when the withdrawal is created."
-              : "Record trader destination, payout settlement, and reference number in one step. Saved withdrawals are approved immediately."
+              : "Select company payout bank first, then enter trader payout details. Saved withdrawals are approved immediately."
           }
           contentOverflow="visible"
         >
@@ -670,81 +744,6 @@ export function WithdrawalExchangeClient() {
               />
               <FieldError message={errors.playerId} />
             </div>
-            {playerId || editingId ? (
-              <div className="md:col-span-2 lg:col-span-1">
-                <FieldLabel>Quick select account (optional)</FieldLabel>
-                <Select
-                  value={savedPreset}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setSavedPreset(v);
-                    if (v === "") return;
-                    const idx = Number.parseInt(v, 10);
-                    if (Number.isNaN(idx) || !savedRows[idx]) return;
-                    const row = savedRows[idx];
-                    setAccountNumber(row.accountNumber);
-                    setAccountHolderName(row.accountHolderName);
-                    setBankName(row.bankName);
-                    setIfsc(row.ifsc);
-                  }}
-                  placeholder="Choose saved account or enter manually below…"
-                  disabled={!!editingId}
-                >
-                  <option value="">Manual entry only</option>
-                  {savedRows.map((r, i) => (
-                    <option key={`${r.accountNumber}-${r.ifsc}-${i}`} value={String(i)}>
-                      {r.accountNumber} · {r.bankName} ({r.ifsc})
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
-            <div>
-              <FieldLabel>Account holder name *</FieldLabel>
-              <Input
-                value={accountHolderName}
-                onChange={(e) => setAccountHolderName(e.target.value)}
-                placeholder="Holder name"
-              />
-              <FieldError message={errors.accountHolderName} />
-            </div>
-            <div>
-              <FieldLabel>Account number *</FieldLabel>
-              <Input
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-                placeholder="Account number"
-              />
-              <FieldError message={errors.accountNumber} />
-            </div>
-            <div>
-              <FieldLabel>Bank name *</FieldLabel>
-              <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Bank name" />
-              <FieldError message={errors.bankName} />
-            </div>
-            <div>
-              <FieldLabel>IFSC *</FieldLabel>
-              <Input value={ifsc} onChange={(e) => setIfsc(e.target.value)} placeholder="IFSC" />
-              <FieldError message={errors.ifsc} />
-            </div>
-            <OperatedMoneyFields
-              value={money}
-              onChange={setMoney}
-              amountLabel="Withdrawal amount *"
-              roundMode="integer"
-              amountInputMode="numeric"
-              minAmount={1}
-              idPrefix="withdrawal"
-            />
-            {errors.amount ? (
-              <div className="col-span-full">
-                <FieldError message={errors.amount} />
-              </div>
-            ) : null}
-            <div>
-              <FieldLabel>Payable amount</FieldLabel>
-              <Input readOnly value={formatWholeMoney(payablePreview)} className="bg-slate-50" />
-            </div>
             {!editingId ? (
               <>
                 <div>
@@ -755,10 +754,20 @@ export function WithdrawalExchangeClient() {
                     onChange={(e) => {
                       const v = e.target.value === "person" ? "person" : "bank";
                       setPayoutSettlementType(v);
+                      setPayoutBankId("");
+                      setPayoutBankMethod("");
+                      setBankAutocompleteDefault(null);
+                      setLiabilityPersonId("");
+                      setCryptoWalletAddress("");
+                      setCryptoNetwork("");
+                      setCryptoAsset("");
                       setErrors((prev) => {
                         const n = { ...prev };
                         delete n.bankId;
                         delete n.liabilityPersonId;
+                        delete n.cryptoWalletAddress;
+                        delete n.cryptoNetwork;
+                        delete n.cryptoAsset;
                         return n;
                       });
                     }}
@@ -774,9 +783,26 @@ export function WithdrawalExchangeClient() {
                     <FieldLabel>Company payout bank *</FieldLabel>
                     <AutocompleteField
                       value={payoutBankId}
-                      onChange={setPayoutBankId}
+                      onChange={(id) => {
+                        const nextId = String(id || "").trim();
+                        const nextMethod = bankMethodById[nextId] || "";
+                        setPayoutBankId(nextId);
+                        setPayoutBankMethod(nextMethod);
+                        if (nextMethod !== "crypto") {
+                          setCryptoWalletAddress("");
+                          setCryptoNetwork("");
+                          setCryptoAsset("");
+                          setErrors((prev) => {
+                            const n = { ...prev };
+                            delete n.cryptoWalletAddress;
+                            delete n.cryptoNetwork;
+                            delete n.cryptoAsset;
+                            return n;
+                          });
+                        }
+                      }}
                       loadOptions={loadBankOptions}
-                      placeholder="Select bank..."
+                      placeholder="Select company payout bank..."
                       emptyText="No banks found"
                       defaultOption={bankAutocompleteDefault}
                       disabled={loading}
@@ -811,6 +837,173 @@ export function WithdrawalExchangeClient() {
                 </div>
               </>
             ) : null}
+
+            {editingId ||
+            (payoutSettlementType === "bank" ? Boolean(payoutBankId.trim()) : Boolean(liabilityPersonId.trim())) ? (
+              <>
+                {isCryptoPayout ? (
+                  <>
+                    <div className="col-span-full">
+                      <p className="text-xs font-medium text-slate-600">Crypto payout details</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <FieldLabel>Wallet address *</FieldLabel>
+                      <Input
+                        value={cryptoWalletAddress}
+                        onChange={(e) => setCryptoWalletAddress(e.target.value)}
+                        placeholder="Trader wallet address"
+                        disabled={loading}
+                      />
+                      <FieldError message={errors.cryptoWalletAddress} />
+                    </div>
+                    <div>
+                      <FieldLabel>Network *</FieldLabel>
+                      <Input
+                        value={cryptoNetwork}
+                        onChange={(e) => setCryptoNetwork(e.target.value)}
+                        placeholder="e.g. TRC20, ERC20"
+                        disabled={loading}
+                      />
+                      <FieldError message={errors.cryptoNetwork} />
+                    </div>
+                    <div>
+                      <FieldLabel>Asset *</FieldLabel>
+                      <Input
+                        value={cryptoAsset}
+                        onChange={(e) => setCryptoAsset(e.target.value)}
+                        placeholder="e.g. USDT"
+                        disabled={loading}
+                      />
+                      <FieldError message={errors.cryptoAsset} />
+                    </div>
+                    <div className="col-span-full">
+                      <p className="text-xs font-medium text-slate-600">Trader bank details (optional)</p>
+                    </div>
+                    <div>
+                      <FieldLabel>Account holder name</FieldLabel>
+                      <Input
+                        value={accountHolderName}
+                        onChange={(e) => setAccountHolderName(e.target.value)}
+                        placeholder="Optional"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Account number</FieldLabel>
+                      <Input
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        placeholder="Optional"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Bank name</FieldLabel>
+                      <Input
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="Optional"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>IFSC</FieldLabel>
+                      <Input
+                        value={ifsc}
+                        onChange={(e) => setIfsc(e.target.value)}
+                        placeholder="Optional"
+                        disabled={loading}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {playerId || editingId ? (
+                      <div className="md:col-span-2 lg:col-span-1">
+                        <FieldLabel>Quick select account (optional)</FieldLabel>
+                        <Select
+                          value={savedPreset}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSavedPreset(v);
+                            if (v === "") return;
+                            const idx = Number.parseInt(v, 10);
+                            if (Number.isNaN(idx) || !savedRows[idx]) return;
+                            const row = savedRows[idx];
+                            setAccountNumber(row.accountNumber);
+                            setAccountHolderName(row.accountHolderName);
+                            setBankName(row.bankName);
+                            setIfsc(row.ifsc);
+                          }}
+                          placeholder="Choose saved account or enter manually below…"
+                          disabled={!!editingId}
+                        >
+                          <option value="">Manual entry only</option>
+                          {savedRows.map((r, i) => (
+                            <option key={`${r.accountNumber}-${r.ifsc}-${i}`} value={String(i)}>
+                              {r.accountNumber} · {r.bankName} ({r.ifsc})
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    ) : null}
+                    <div className="col-span-full">
+                      <p className="text-xs font-medium text-slate-600">Trader payout details</p>
+                    </div>
+                    <div>
+                      <FieldLabel>Account holder name *</FieldLabel>
+                      <Input
+                        value={accountHolderName}
+                        onChange={(e) => setAccountHolderName(e.target.value)}
+                        placeholder="Holder name"
+                      />
+                      <FieldError message={errors.accountHolderName} />
+                    </div>
+                    <div>
+                      <FieldLabel>Account number *</FieldLabel>
+                      <Input
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        placeholder="Account number"
+                      />
+                      <FieldError message={errors.accountNumber} />
+                    </div>
+                    <div>
+                      <FieldLabel>Bank name *</FieldLabel>
+                      <Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Bank name" />
+                      <FieldError message={errors.bankName} />
+                    </div>
+                    <div>
+                      <FieldLabel>IFSC *</FieldLabel>
+                      <Input value={ifsc} onChange={(e) => setIfsc(e.target.value)} placeholder="IFSC" />
+                      <FieldError message={errors.ifsc} />
+                    </div>
+                  </>
+                )}
+                <OperatedMoneyFields
+                  value={money}
+                  onChange={setMoney}
+                  amountLabel="Withdrawal amount *"
+                  roundMode="integer"
+                  amountInputMode="numeric"
+                  minAmount={1}
+                  idPrefix="withdrawal"
+                />
+                {errors.amount ? (
+                  <div className="col-span-full">
+                    <FieldError message={errors.amount} />
+                  </div>
+                ) : null}
+                <div>
+                  <FieldLabel>Payable amount</FieldLabel>
+                  <Input readOnly value={formatWholeMoney(payablePreview)} className="bg-slate-50" />
+                </div>
+              </>
+            ) : (
+              <div className="col-span-full rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                Select company payout bank (or liability person) to enter trader payout details.
+              </div>
+            )}
           </FormGrid>
           <FormActions className="justify-between px-5 py-4">
             <Button

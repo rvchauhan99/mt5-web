@@ -20,6 +20,14 @@ export type LookupExpenseTypeOption = {
   auditNotRequired: boolean;
 };
 
+export type LookupPaymentMethodOption = {
+  id: string;
+  label: string;
+  name: string;
+  code: string;
+  description?: string;
+};
+
 export type LookupPlayerOption = {
   id: string;
   label: string;
@@ -86,6 +94,23 @@ export async function listExpenseTypeLookupOptions(
   const query = normalizeQueryParams(params);
   const res = await apiClient.get<{ success: boolean; data: LookupExpenseTypeOption[] }>(
     "/lookup/expense-types",
+    {
+      params: {
+        q: query.q || undefined,
+        limit: query.limit,
+        ...(query.id ? { id: query.id } : {}),
+      },
+    },
+  );
+  return Array.isArray(res.data?.data) ? res.data.data : [];
+}
+
+export async function listPaymentMethodLookupOptions(
+  params?: LookupListParams,
+): Promise<LookupPaymentMethodOption[]> {
+  const query = normalizeQueryParams(params);
+  const res = await apiClient.get<{ success: boolean; data: LookupPaymentMethodOption[] }>(
+    "/lookup/payment-methods",
     {
       params: {
         q: query.q || undefined,

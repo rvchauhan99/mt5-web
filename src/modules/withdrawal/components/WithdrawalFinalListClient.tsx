@@ -44,6 +44,7 @@ import {
   formatDateTimeForUser,
   utcIsoToDateTimeLocalValue,
 } from "@/lib/userTimezone";
+import { filterWithdrawalPayoutBanks } from "@/modules/withdrawal/withdrawalPayoutBankMethodFilter";
 
 function toOptionalFilterValue(value: string): string | undefined {
   const trimmed = value.trim();
@@ -169,7 +170,7 @@ export function WithdrawalFinalListClient() {
 
   const loadPayoutBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
-      const rows = await listBankLookupOptions({ q: query || undefined, limit: 25 });
+      const rows = filterWithdrawalPayoutBanks(await listBankLookupOptions({ q: query || undefined, limit: 25 }));
       return rows.map((b) => ({
         value: b.id,
         label: b.label,

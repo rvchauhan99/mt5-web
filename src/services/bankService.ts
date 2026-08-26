@@ -36,7 +36,7 @@ function normalizeBank(row: Record<string, unknown>): BankRow {
   return {
     _id: id,
     id,
-    method: row.method === "crypto" || row.method === "bank_transfer" || row.method === "sgpay" || row.method === "trustpay" || row.method === "card_entry" ? row.method : undefined,
+    method: row.method != null && String(row.method).trim() !== "" ? String(row.method) : undefined,
     holderName: String(row.holderName ?? ""),
     bankName: String(row.bankName ?? ""),
     accountNumber: String(row.accountNumber ?? ""),
