@@ -162,7 +162,7 @@ export async function importPlayers(file: File): Promise<PlayerImportResult> {
   }
 
   if (response.status === 400 && contentType.includes("text/csv")) {
-    const fileName = parseDispositionFileName(contentDisposition) ?? "player-import-errors.csv";
+    const fileName = parseDispositionFileName(contentDisposition) ?? "trader-import-errors.csv";
     throw new PlayerImportValidationCsvError(response.data, fileName);
   }
 
@@ -200,7 +200,7 @@ export async function downloadPlayerImportJobErrorCsv(
     responseType: "blob",
   });
   const contentDisposition = String(response.headers["content-disposition"] ?? "");
-  const fileName = parseDispositionFileName(contentDisposition) ?? `player-import-errors-${jobId}.csv`;
+  const fileName = parseDispositionFileName(contentDisposition) ?? `trader-import-errors-${jobId}.csv`;
   return { blob: response.data, fileName };
 }
 

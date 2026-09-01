@@ -255,7 +255,7 @@ export function PlayerAddClient() {
   const onDownloadSample = async () => {
     try {
       const blob = await downloadSampleCsv();
-      triggerCsvDownload(blob, "players-sample.csv");
+      triggerCsvDownload(blob, "traders-sample.csv");
       toast.success("Sample CSV downloaded.");
     } catch {
       toast.error("Failed to download sample CSV.");
@@ -374,7 +374,7 @@ export function PlayerAddClient() {
 
       <FormContainer
         title="Bulk upload"
-        description="Upload a CSV or Excel file. Each row must include exchange name, player id (trader id), and phone. Optional user_type is trader or ib (defaults to trader). Bonus percentage columns are optional and default to 0. Use the sample file as a template. If any row is invalid, nothing is imported."
+        description="Upload a CSV or Excel file. Each row must include Exchange, Trader Id, and Phone Number. Optional columns: Email ID, User type (trader or ib, default trader), IB (trader id of an existing IB on the same exchange), Referral Percentage for IB (0–100, default 0). Use the sample file as a template. If any row is invalid, nothing is imported."
         className="flex-none"
       >
         <div className="space-y-2">

@@ -167,7 +167,7 @@ export function PlayerListClient() {
   }, []);
 
   const { exporting, handleExport } = useExport((params) => exportPlayers(params), {
-    fileName: `players-${new Date().toISOString().split("T")[0]}.xlsx`,
+    fileName: `traders-${new Date().toISOString().split("T")[0]}.xlsx`,
   });
 
   const onExportClick = useCallback(() => {
