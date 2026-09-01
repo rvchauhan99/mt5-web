@@ -545,7 +545,7 @@ export function WithdrawalExchangeClient() {
     () => [
       {
         field: "playerName",
-        label: "Trader",
+        label: "Trader Wallet Id",
         render: (row: WithdrawalRow) => row.playerName,
         ...tableColumnPresets.nameCol,
         sortable: true,

@@ -209,7 +209,7 @@ export function DepositImportDialog({ open, onClose, onSuccess }: Props) {
 
   function handleDownloadErrors(invalidRows: DepositImportInvalidRow[]) {
     const header =
-      "Row,Date Time,Settlement Type,Bank,Liable Person Name,Trader Id,Reference Number,Amount,Error";
+      "Row,Date Time,Settlement Type,Bank,Liable Person Name,Trader Wallet Id,Reference Number,Amount,Error";
     const lines = [header];
     for (const r of invalidRows) {
       lines.push(
@@ -395,7 +395,7 @@ function UploadStep({
           <p><span className="font-medium">Settlement Type</span> — Bank or Person (optional, defaults to Bank)</p>
           <p><span className="font-medium">Bank</span> — Account Number or Holder Name (required if settlement is Bank)</p>
           <p><span className="font-medium">Liable Person Name</span> — Required if settlement is Person</p>
-          <p><span className="font-medium">Trader Id</span> — Exchange trader code (optional)</p>
+          <p><span className="font-medium">Trader Wallet Id</span> — Exchange trader code (optional)</p>
           <p><span className="font-medium">Reference Number</span> — Required, must be unique (4-120 chars)</p>
           <p><span className="font-medium">Amount</span> — Required, whole number, min 1.</p>
         </div>
@@ -447,7 +447,7 @@ function ReviewStep({
               <thead className="sticky top-0 bg-red-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Row</th>
-                  <th className="px-3 py-2 text-left font-medium text-red-800">Trader Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Trader Wallet Id</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Reference Number</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Amount</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Error</th>
@@ -484,7 +484,7 @@ function ReviewStep({
               <thead className="sticky top-0 bg-green-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Row</th>
-                  <th className="px-3 py-2 text-left font-medium text-green-800">Trader Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Trader Wallet Id</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Reference Number</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Amount</th>
                 </tr>

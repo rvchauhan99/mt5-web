@@ -107,7 +107,7 @@ export function PlayerAddClient() {
   const onManualSave = async () => {
     const next: typeof manualErrors = {};
     if (!exchangeId.trim()) next.exchangeId = "Exchange is required.";
-    if (!playerId.trim()) next.playerId = "Trader Id is required.";
+    if (!playerId.trim()) next.playerId = "Trader Wallet Id is required.";
     if (!phone.trim()) next.phone = "Phone number is required.";
     const emailTrim = email.trim();
     if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
@@ -282,7 +282,7 @@ export function PlayerAddClient() {
             <FieldError message={manualErrors.exchangeId} />
           </div>
           <div>
-            <FieldLabel>Trader Id *</FieldLabel>
+            <FieldLabel>Trader Wallet Id *</FieldLabel>
             <Input placeholder="id" value={playerId} onChange={(e) => setPlayerId(e.target.value)} />
             <FieldError message={manualErrors.playerId} />
           </div>
@@ -320,7 +320,7 @@ export function PlayerAddClient() {
             <FieldError message={manualErrors.userType} />
           </div>
           <div>
-            <FieldLabel>IB</FieldLabel>
+            <FieldLabel>IB Trader Wallet Id</FieldLabel>
             <AutocompleteField
               value={referredByPlayerId}
               onChange={setReferredByPlayerId}
@@ -374,7 +374,7 @@ export function PlayerAddClient() {
 
       <FormContainer
         title="Bulk upload"
-        description="Upload a CSV or Excel file. Each row must include Exchange, Trader Id, and Phone Number. Optional columns: Email ID, User type (trader or ib, default trader), IB (trader id of an existing IB on the same exchange), Referral Percentage for IB (0–100, default 0). Use the sample file as a template. If any row is invalid, nothing is imported."
+        description="Upload a CSV or Excel file. Each row must include Exchange, Trader Wallet Id, and Phone Number. Optional columns: Email ID, User type (trader or ib, default trader), IB Trader Wallet Id (Trader Wallet Id of an existing IB on the same exchange), Referral Percentage for IB (0–100, default 0). Use the sample file as a template. If any row is invalid, nothing is imported."
         className="flex-none"
       >
         <div className="space-y-2">

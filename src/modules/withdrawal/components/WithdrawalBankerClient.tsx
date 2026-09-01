@@ -108,7 +108,7 @@ function WithdrawalDetailCard({ withdrawal }: { withdrawal: WithdrawalRow }) {
   const items = [
     {
       icon: <IconUser className="size-4 shrink-0 text-[var(--brand-primary)]" />,
-      label: "Trader",
+      label: "Trader Wallet Id",
       value: withdrawal.playerName || "—",
     },
     {
@@ -625,7 +625,7 @@ export function WithdrawalBankerClient() {
       },
       {
         field: "playerName",
-        label: "Trader",
+        label: "Trader Wallet Id",
         render: (row: WithdrawalRow) => row.playerName,
         ...tableColumnPresets.nameCol,
         sortable: true,

@@ -212,7 +212,7 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
 
   function handleDownloadErrors(invalidRows: WithdrawalImportInvalidRow[]) {
     const header =
-      "Row,Date Time,Trader Id,Account Number,Account Holder Name,Bank Name,IFSC,Amount,Payout Reference Number,Payout Settlement Type,Payout Bank,Payout Liable Person Name,Error";
+      "Row,Date Time,Trader Wallet Id,Account Number,Account Holder Name,Bank Name,IFSC,Amount,Payout Reference Number,Payout Settlement Type,Payout Bank,Payout Liable Person Name,Error";
     const lines = [header];
     for (const r of invalidRows) {
       lines.push(
@@ -399,7 +399,7 @@ function UploadStep({
         <p className="text-sm font-medium text-gray-700 mb-2">Column guide:</p>
         <div className="text-xs text-gray-600 space-y-1">
           <p><span className="font-medium">Date Time</span> — Requested datetime (optional, defaults to current)</p>
-          <p><span className="font-medium">Trader Id</span> — Required exchange trader code</p>
+          <p><span className="font-medium">Trader Wallet Id</span> — Required exchange trader code</p>
           <p><span className="font-medium">Account Number / Holder Name / Bank Name / IFSC</span> — Required beneficiary details. Account Number must be full digits (text), not scientific notation (E+).</p>
           <p><span className="font-medium">Amount</span> — Required whole number, min 1</p>
           <p><span className="font-medium">Payout Reference Number</span> — Optional; required with payout bank/person for banker bulk approve</p>
@@ -455,7 +455,7 @@ function ReviewStep({
               <thead className="sticky top-0 bg-red-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Row</th>
-                  <th className="px-3 py-2 text-left font-medium text-red-800">Trader Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Trader Wallet Id</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Amount</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Payout Reference Number</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Error</th>
@@ -492,7 +492,7 @@ function ReviewStep({
               <thead className="sticky top-0 bg-green-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Row</th>
-                  <th className="px-3 py-2 text-left font-medium text-green-800">Trader Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Trader Wallet Id</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Amount</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Payable</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Payout Reference Number</th>

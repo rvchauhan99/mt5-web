@@ -206,7 +206,7 @@ export function PlayerListClient() {
       },
       {
         field: "playerId",
-        label: "Trader Id",
+        label: "Trader Wallet Id",
         render: (row: PlayerRow) => row.playerId,
         minWidth: 120,
         sortable: true,

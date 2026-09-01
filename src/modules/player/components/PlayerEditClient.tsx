@@ -199,8 +199,8 @@ export function PlayerEditClient() {
             <Input value={exchangeLabel} disabled placeholder={loadingDetails ? "Loading..." : "Exchange"} />
           </div>
           <div>
-            <FieldLabel>Trader Id *</FieldLabel>
-            <Input value={playerIdLabel} disabled placeholder={loadingDetails ? "Loading..." : "Trader Id"} />
+            <FieldLabel>Trader Wallet Id *</FieldLabel>
+            <Input value={playerIdLabel} disabled placeholder={loadingDetails ? "Loading..." : "Trader Wallet Id"} />
           </div>
           <div>
             <FieldLabel>Phone Number *</FieldLabel>
@@ -239,7 +239,7 @@ export function PlayerEditClient() {
             <FieldError message={errors.userType} />
           </div>
           <div>
-            <FieldLabel>IB</FieldLabel>
+            <FieldLabel>IB Trader Wallet Id</FieldLabel>
             <AutocompleteField
               value={referredByPlayerId}
               onChange={setReferredByPlayerId}

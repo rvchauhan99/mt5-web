@@ -358,7 +358,7 @@ export function DepositFinalListClient() {
     () => [
       {
         field: "player",
-        label: "Trader",
+        label: "Trader Wallet Id",
         render: (row: DepositRow) => row.playerIdLabel || "—",
         minWidth: 120,
         sortable: false,

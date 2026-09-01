@@ -138,7 +138,10 @@ export async function getPlayerById(
 }
 
 export async function downloadSampleCsv(): Promise<Blob> {
-  const response = await apiClient.get("/players/sample", { responseType: "blob" });
+  const response = await apiClient.get("/players/sample", {
+    responseType: "blob",
+    params: { _: Date.now() },
+  });
   return response.data as Blob;
 }
 
