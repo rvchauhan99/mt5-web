@@ -289,16 +289,12 @@ export async function listDepositsNormalized(
 }
 
 export async function exportDeposits(view: DepositView, params: Record<string, unknown>): Promise<Blob> {
-  const page = Number(params.page) || 1;
-  const limit = Number(params.limit) || 20;
   const sortBy = coerceDepositListSortBy(str(params, "sortBy") || "entryAt");
   const sortOrder = str(params, "sortOrder") === "asc" ? "asc" : "desc";
 
   const response = await apiClient.get("/deposit/export", {
     params: {
       view,
-      page,
-      pageSize: limit,
       sortBy,
       sortOrder,
       search: toOptionalParam(str(params, "q")) || undefined,

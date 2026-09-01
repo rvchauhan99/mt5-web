@@ -215,17 +215,13 @@ export async function listExchangesNormalized(
 
 /**
  * Download filtered exchange list as Excel (same query contract as list).
- * Pagination fields are accepted by the API but ignored for export row selection.
+ * Pagination fields are ignored by the API for export row selection.
  */
 export async function exportExchanges(params: ExchangeListParams = {}): Promise<Blob> {
-  const page = params.page ?? 1;
-  const limit = params.limit ?? params.pageSize ?? 20;
   const textSearch = params.q ?? params.search ?? "";
   const sortBy = params.sortBy ?? "createdAt";
   const sortOrder = params.sortOrder ?? "desc";
   const requestParams = {
-    page,
-    pageSize: limit,
     search: textSearch || undefined,
     sortBy,
     sortOrder,

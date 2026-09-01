@@ -186,8 +186,6 @@ export function DepositFinalListClient() {
 
   const onExportClick = useCallback(() => {
     handleExport({
-      page: 1,
-      limit: 10000,
       sortBy: sortBy || "createdAt",
       sortOrder: sortOrder || "desc",
       q: toOptionalFilterValue(q || ""),

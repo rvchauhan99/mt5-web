@@ -172,8 +172,6 @@ export function ExchangeListClient() {
     const status =
       statusRaw === "active" || statusRaw === "deactive" ? statusRaw : undefined;
     handleExport({
-      page: 1,
-      limit: 10000,
       sortBy: (sortBy || "createdAt") as "createdAt" | "name" | "provider",
       sortOrder: (sortOrder === "asc" ? "asc" : "desc") as "asc" | "desc",
       name: toOptionalFilterValue(filters.name || ""),

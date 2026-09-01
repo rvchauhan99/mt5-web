@@ -172,8 +172,6 @@ export function PlayerListClient() {
 
   const onExportClick = useCallback(() => {
     handleExport({
-      page: 1,
-      limit: 10000,
       sortBy: (sortBy || "createdAt") as "createdAt" | "playerId" | "phone" | "userType",
       sortOrder: (sortOrder === "asc" ? "asc" : "desc") as "asc" | "desc",
       playerId: toOptionalFilterValue(filters.playerId || ""),

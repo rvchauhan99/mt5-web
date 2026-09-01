@@ -86,8 +86,6 @@ export function BankListClient() {
 
   const onExportClick = useCallback(() => {
     handleExport({
-      page: 1,
-      limit: 10000,
       sortBy: (sortBy || "createdAt") as string,
       sortOrder: (sortOrder === "asc" ? "asc" : "desc") as "asc" | "desc",
       holderName: toOptionalFilterValue(filters.holderName || ""),

@@ -136,8 +136,6 @@ export async function listBanksNormalized(params: Record<string, unknown>): Prom
 }
 
 export async function exportBanks(params: Record<string, unknown>): Promise<Blob> {
-  const page = Number(params.page) || 1;
-  const limit = Number(params.limit) || 20;
   const sortBy =
     (str(params, "sortBy") || "createdAt") as
       | "createdAt"
@@ -152,8 +150,6 @@ export async function exportBanks(params: Record<string, unknown>): Promise<Blob
 
   const response = await apiClient.get("/bank/export", {
     params: {
-      page,
-      pageSize: limit,
       sortBy,
       sortOrder,
       search: toOptionalParam(str(params, "q")) || undefined,

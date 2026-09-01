@@ -361,8 +361,6 @@ export async function listPlayersNormalized(params: Record<string, unknown>): Pr
 }
 
 export async function exportPlayers(params: Record<string, unknown>): Promise<Blob> {
-  const page = Number(params.page) || 1;
-  const limit = Number(params.limit) || 20;
   const sortBy = (str(params, "sortBy") || "createdAt") as
     | "createdAt"
     | "playerId"
@@ -373,8 +371,6 @@ export async function exportPlayers(params: Record<string, unknown>): Promise<Bl
 
   const response = await apiClient.get("/players/export", {
     params: {
-      page,
-      pageSize: limit,
       sortBy,
       sortOrder,
       search: toOptionalParam(str(params, "q")) || undefined,

@@ -504,8 +504,6 @@ export function WithdrawalExchangeClient() {
   const onExportClick = useCallback(() => {
     handleExport({
       view: "exchange",
-      page: 1,
-      limit: 10000,
       sortBy: sortBy || "createdAt",
       sortOrder: sortOrder || "desc",
       utr: toOptionalFilterValue(filters.utr || ""),
