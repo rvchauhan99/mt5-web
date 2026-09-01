@@ -10,10 +10,13 @@ export type WithdrawalBankerPayoutInput =
 
 export type WithdrawalCreateInput = {
   playerId: string;
-  accountNumber: string;
-  accountHolderName: string;
-  bankName: string;
-  ifsc: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  bankName?: string;
+  ifsc?: string;
+  cryptoWalletAddress?: string;
+  cryptoNetwork?: string;
+  cryptoAsset?: string;
   amount: number;
   reverseBonus?: number;
   requestedAt?: string;
@@ -65,6 +68,9 @@ export type WithdrawalRow = {
   accountHolderName?: string;
   bankName: string;
   ifsc?: string;
+  cryptoWalletAddress?: string;
+  cryptoNetwork?: string;
+  cryptoAsset?: string;
   amount: number;
   operatedCurrency?: string;
   operatedAmount?: number;

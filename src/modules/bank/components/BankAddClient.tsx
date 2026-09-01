@@ -7,7 +7,6 @@ import { FormActions, FormContainer } from "@/components/common/FormContainer";
 import { FormGrid } from "@/components/common/FormGrid";
 import { FieldLabel } from "@/components/common/FieldLabel";
 import { FieldError } from "@/components/common/FieldError";
-import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import {
@@ -17,14 +16,15 @@ import {
 } from "@/components/common/OperatedMoneyFields";
 import { usePlatformSettings } from "@/context/PlatformSettingsContext";
 import { createBank } from "@/services/bankService";
+import {
+  listPaymentMethodLookupOptions,
+  type LookupPaymentMethodOption,
+} from "@/services/lookupService";
 import type { BankCreateInput } from "@/types/bank";
 import { getApiErrorMessage } from "@/lib/apiError";
 
 const initialState: BankCreateInput = {
-  holderName: "",
-  bankName: "",
-  accountNumber: "",
-  ifsc: "",
+  method: "",
   openingBalance: 0,
   status: "active",
 };
@@ -34,11 +34,10 @@ export function BankAddClient() {
   const [form, setForm] = useState<BankCreateInput>(initialState);
   const [openingMoney, setOpeningMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
   const [loading, setLoading] = useState(false);
+  const [methodsLoading, setMethodsLoading] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState<LookupPaymentMethodOption[]>([]);
   const [errors, setErrors] = useState<{
-    holderName?: string;
-    bankName?: string;
-    accountNumber?: string;
-    ifsc?: string;
+    method?: string;
     openingBalance?: string;
   }>({});
 
@@ -49,8 +48,36 @@ export function BankAddClient() {
     );
   }, [platformCurrency]);
 
+  useEffect(() => {
+    let active = true;
+    setMethodsLoading(true);
+    listPaymentMethodLookupOptions({ limit: 100 })
+      .then((rows) => {
+        if (!active) return;
+        setPaymentMethods(rows);
+        setForm((prev) => {
+          if (prev.method) return prev;
+          const first = rows[0]?.code || "";
+          return first ? { ...prev, method: first } : prev;
+        });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        toast.error(getApiErrorMessage(error, "Failed to load payment methods"));
+      })
+      .finally(() => {
+        if (active) setMethodsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const reset = () => {
-    setForm(initialState);
+    setForm({
+      ...initialState,
+      method: paymentMethods[0]?.code || "",
+    });
     setOpeningMoney(defaultOperatedMoneyValue(platformCurrency));
     setErrors({});
   };
@@ -61,10 +88,7 @@ export function BankAddClient() {
       return;
     }
     const nextErrors: typeof errors = {};
-    if (!form.holderName.trim()) nextErrors.holderName = "Holder name is required.";
-    if (!form.bankName.trim()) nextErrors.bankName = "Bank name is required.";
-    if (!form.accountNumber.trim()) nextErrors.accountNumber = "Account number is required.";
-    if (!form.ifsc.trim()) nextErrors.ifsc = "IFSC code is required.";
+    if (!form.method.trim()) nextErrors.method = "Payment method is required.";
     const operatedAmt = openingMoney.amount.trim() === "" ? 0 : Number(openingMoney.amount);
     if (Number.isNaN(operatedAmt)) {
       nextErrors.openingBalance = "Opening balance is required.";
@@ -89,17 +113,14 @@ export function BankAddClient() {
     setLoading(true);
     try {
       await createBank({
-        ...form,
-        holderName: form.holderName.trim(),
-        bankName: form.bankName.trim(),
-        accountNumber: form.accountNumber.trim(),
-        ifsc: form.ifsc.trim(),
+        method: form.method.trim(),
+        status: form.status,
         openingBalance: fx.amount,
         openingOperatedCurrency: fx.operatedCurrency,
         openingOperatedAmount: fx.operatedAmount,
         openingExchangeRate: fx.exchangeRate,
       });
-      toast.success("Bank account created successfully.");
+      toast.success("Payment account created successfully.");
       reset();
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, "Failed to create bank account"));
@@ -111,45 +132,30 @@ export function BankAddClient() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 pb-4">
       <FormContainer
-        title="Add Bank Account"
-        description="Create a new bank account with opening balance."
+        title="Add Payment Account"
+        description="Create a payment account with opening balance. Manage methods in Masters → Payment Method."
       >
         <FormGrid>
           <div>
-            <FieldLabel>Holder name *</FieldLabel>
-            <Input
-              placeholder="Holder name"
-              value={form.holderName}
-              onChange={(e) => setForm((p) => ({ ...p, holderName: e.target.value }))}
-            />
-            <FieldError message={errors.holderName} />
-          </div>
-          <div>
-            <FieldLabel>Bank name *</FieldLabel>
-            <Input
-              placeholder="Bank name"
-              value={form.bankName}
-              onChange={(e) => setForm((p) => ({ ...p, bankName: e.target.value }))}
-            />
-            <FieldError message={errors.bankName} />
-          </div>
-          <div>
-            <FieldLabel>Account number *</FieldLabel>
-            <Input
-              placeholder="Account number"
-              value={form.accountNumber}
-              onChange={(e) => setForm((p) => ({ ...p, accountNumber: e.target.value }))}
-            />
-            <FieldError message={errors.accountNumber} />
-          </div>
-          <div>
-            <FieldLabel>IFSC code *</FieldLabel>
-            <Input
-              placeholder="IFSC code"
-              value={form.ifsc}
-              onChange={(e) => setForm((p) => ({ ...p, ifsc: e.target.value }))}
-            />
-            <FieldError message={errors.ifsc} />
+            <FieldLabel>Payment method *</FieldLabel>
+            <Select
+              value={form.method}
+              onChange={(e) => setForm((p) => ({ ...p, method: e.target.value }))}
+              disabled={methodsLoading || paymentMethods.length === 0}
+            >
+              {paymentMethods.length === 0 ? (
+                <option value="">
+                  {methodsLoading ? "Loading…" : "No payment methods — add in Masters"}
+                </option>
+              ) : (
+                paymentMethods.map((method) => (
+                  <option key={method.id} value={method.code}>
+                    {method.label}
+                  </option>
+                ))
+              )}
+            </Select>
+            <FieldError message={errors.method} />
           </div>
           <OperatedMoneyFields
             value={openingMoney}
@@ -181,7 +187,7 @@ export function BankAddClient() {
             variant="success"
             startIcon={<IconCheck size={18} />}
             onClick={onSubmit}
-            disabled={loading}
+            disabled={loading || methodsLoading || paymentMethods.length === 0}
           >
             {loading ? "Saving…" : "Save"}
           </Button>

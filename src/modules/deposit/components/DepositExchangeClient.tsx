@@ -54,6 +54,7 @@ import { REASON_TYPES } from "@/lib/constants/reasonTypes";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { useApprovalQueueAutoRefresh } from "@/hooks/useApprovalQueueAutoRefresh";
 import { currentDateTimeLocalValue, formatDateTimeForUser } from "@/lib/userTimezone";
+import { filterDepositBanks } from "@/modules/withdrawal/withdrawalPayoutBankMethodFilter";
 import { DepositImportDialog } from "./DepositImportDialog";
 
 const COLUMN_FILTER_KEYS = [
@@ -297,7 +298,7 @@ export function DepositExchangeClient() {
 
   const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
-      const rows = await listBankLookupOptions({ q: query || undefined, limit: 25 });
+      const rows = filterDepositBanks(await listBankLookupOptions({ q: query || undefined, limit: 25 }));
       return rows.map((b) => ({
         value: b.id,
         label: b.label,

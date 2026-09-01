@@ -119,6 +119,10 @@ export function normalizeWithdrawal(row: Record<string, unknown>): WithdrawalRow
     accountHolderName: row.accountHolderName != null ? String(row.accountHolderName) : undefined,
     bankName: String(row.bankName ?? ""),
     ifsc: row.ifsc != null ? String(row.ifsc) : undefined,
+    cryptoWalletAddress:
+      row.cryptoWalletAddress != null ? String(row.cryptoWalletAddress) : undefined,
+    cryptoNetwork: row.cryptoNetwork != null ? String(row.cryptoNetwork) : undefined,
+    cryptoAsset: row.cryptoAsset != null ? String(row.cryptoAsset) : undefined,
     amount: Number(row.amount ?? 0),
     reverseBonus: row.reverseBonus != null ? Number(row.reverseBonus) : undefined,
     payableAmount: row.payableAmount != null ? Number(row.payableAmount) : undefined,

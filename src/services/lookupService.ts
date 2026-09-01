@@ -3,6 +3,10 @@ import { apiClient } from "./apiClient";
 export type LookupBankOption = {
   id: string;
   label: string;
+  method?: string;
+  isActive?: boolean;
+  isActiveForWithdrawalPayout?: boolean;
+  isActiveForDeposit?: boolean;
   holderName: string;
   bankName: string;
   accountNumber: string;
@@ -17,6 +21,16 @@ export type LookupExpenseTypeOption = {
   /** False only when master `auditRequired` is explicitly false (auto-approve + settlement on create). */
   requiresAudit: boolean;
   auditNotRequired: boolean;
+};
+
+export type LookupPaymentMethodOption = {
+  id: string;
+  label: string;
+  name: string;
+  code: string;
+  description?: string;
+  isActiveForWithdrawalPayout?: boolean;
+  isActiveForDeposit?: boolean;
 };
 
 export type LookupPlayerOption = {
@@ -85,6 +99,23 @@ export async function listExpenseTypeLookupOptions(
   const query = normalizeQueryParams(params);
   const res = await apiClient.get<{ success: boolean; data: LookupExpenseTypeOption[] }>(
     "/lookup/expense-types",
+    {
+      params: {
+        q: query.q || undefined,
+        limit: query.limit,
+        ...(query.id ? { id: query.id } : {}),
+      },
+    },
+  );
+  return Array.isArray(res.data?.data) ? res.data.data : [];
+}
+
+export async function listPaymentMethodLookupOptions(
+  params?: LookupListParams,
+): Promise<LookupPaymentMethodOption[]> {
+  const query = normalizeQueryParams(params);
+  const res = await apiClient.get<{ success: boolean; data: LookupPaymentMethodOption[] }>(
+    "/lookup/payment-methods",
     {
       params: {
         q: query.q || undefined,

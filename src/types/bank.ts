@@ -1,10 +1,8 @@
 export type BankStatus = "active" | "deactive";
 
 export type BankCreateInput = {
-  holderName: string;
-  bankName: string;
-  accountNumber: string;
-  ifsc: string;
+  method: string;
+  name?: string;
   openingBalance: number;
   openingOperatedCurrency?: string;
   openingOperatedAmount?: number;
@@ -15,10 +13,12 @@ export type BankCreateInput = {
 export type BankRow = {
   _id: string;
   id: string;
+  method?: string;
   holderName: string;
   bankName: string;
   accountNumber: string;
   ifsc: string;
+  displayName?: string;
   openingBalance: number;
   openingOperatedCurrency?: string;
   openingOperatedAmount?: number;
