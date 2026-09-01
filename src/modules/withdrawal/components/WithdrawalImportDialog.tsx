@@ -140,6 +140,9 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
         bankName: r.bankName,
         ifsc: r.ifsc,
         amount: r.amount,
+        operatedCurrency: r.operatedCurrency,
+        operatedAmount: r.operatedAmount,
+        exchangeRate: r.exchangeRate,
         reverseBonus: 0,
         requestedAt: r.requestedAt,
         payoutUtr: r.payoutUtr,
@@ -212,7 +215,7 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
 
   function handleDownloadErrors(invalidRows: WithdrawalImportInvalidRow[]) {
     const header =
-      "Row,Date Time,Trader Wallet Id,Account Number,Account Holder Name,Bank Name,IFSC,Amount,Payout Reference Number,Payout Settlement Type,Payout Bank,Payout Liable Person Name,Error";
+      "Row,Request date & time,Trader Wallet Id,Payout settlement,Company payout bank,Liability person paying out,Reference Number,Account number,Account holder name,Bank name,IFSC,Operated currency,Withdrawal amount,Exchange rate,Platform amount,Error";
     const lines = [header];
     for (const r of invalidRows) {
       lines.push(
@@ -220,15 +223,18 @@ export function WithdrawalImportDialog({ open, onClose, onSuccess }: Props) {
           String(r.row),
           csvQuote(r.dateTime),
           csvQuote(r.playerId),
+          csvQuote(r.payoutSettlementType),
+          csvQuote(r.payoutBank),
+          csvQuote(r.payoutLiablePersonName),
+          csvQuote(r.payoutUtr),
           csvQuote(r.accountNumber),
           csvQuote(r.accountHolderName),
           csvQuote(r.bankName),
           csvQuote(r.ifsc),
-          csvQuote(r.amount),
-          csvQuote(r.payoutUtr),
-          csvQuote(r.payoutSettlementType),
-          csvQuote(r.payoutBank),
-          csvQuote(r.payoutLiablePersonName),
+          csvQuote(r.operatedCurrency),
+          csvQuote(r.withdrawalAmount),
+          csvQuote(r.exchangeRate),
+          csvQuote(r.platformAmount),
           csvQuote(r.errors.join("; ")),
         ].join(","),
       );
@@ -398,14 +404,15 @@ function UploadStep({
       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
         <p className="text-sm font-medium text-gray-700 mb-2">Column guide:</p>
         <div className="text-xs text-gray-600 space-y-1">
-          <p><span className="font-medium">Date Time</span> — Requested datetime (optional, defaults to current)</p>
-          <p><span className="font-medium">Trader Wallet Id</span> — Required exchange trader code</p>
-          <p><span className="font-medium">Account Number / Holder Name / Bank Name / IFSC</span> — Required beneficiary details. Account Number must be full digits (text), not scientific notation (E+).</p>
-          <p><span className="font-medium">Amount</span> — Required whole number, min 1</p>
-          <p><span className="font-medium">Payout Reference Number</span> — Optional; required with payout bank/person for banker bulk approve</p>
-          <p><span className="font-medium">Payout Settlement Type</span> — Bank or Person (optional, defaults to Bank)</p>
-          <p><span className="font-medium">Payout Bank</span> — Company bank account no. or holder name (when settlement is Bank). If using account number, enter full digits (no E+ format).</p>
-          <p><span className="font-medium">Payout Liable Person Name</span> — Required when payout settlement is Person</p>
+          <p><span className="font-medium">Request date &amp; time</span> — DD/MM/YYYY HH:mm in your profile timezone (optional; blank uses current time).</p>
+          <p><span className="font-medium">Trader Wallet Id</span> — Required exchange trader code.</p>
+          <p><span className="font-medium">Payout settlement</span> — Bank or Person (optional, defaults to Bank).</p>
+          <p><span className="font-medium">Company payout bank</span> — Account number or holder name (required when settlement is Bank). Use full digits, not scientific notation (E+).</p>
+          <p><span className="font-medium">Liability person paying out</span> — Required when payout settlement is Person.</p>
+          <p><span className="font-medium">Reference Number</span> — Required, unique (4–120 characters). Legacy headers Payout UTR / Payout Reference Number are accepted.</p>
+          <p><span className="font-medium">Account number / Account holder name / Bank name / IFSC</span> — Required beneficiary details. Account number must be full digits (text), not scientific notation (E+).</p>
+          <p><span className="font-medium">Operated currency</span> — Optional; defaults to platform currency. Case-insensitive (e.g. usd, USD).</p>
+          <p><span className="font-medium">Withdrawal amount</span> — Required in operated currency. Exchange rate is taken from master (1 when same as platform).</p>
         </div>
       </div>
     </div>
@@ -456,8 +463,10 @@ function ReviewStep({
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Row</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Trader Wallet Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Reference Number</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Currency</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Amount</th>
-                  <th className="px-3 py-2 text-left font-medium text-red-800">Payout Reference Number</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Platform amount</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Error</th>
                 </tr>
               </thead>
@@ -466,8 +475,10 @@ function ReviewStep({
                   <tr key={i} className="bg-white hover:bg-red-50/50">
                     <td className="px-3 py-2 text-gray-600">{r.row}</td>
                     <td className="px-3 py-2 text-gray-700">{r.playerId || "—"}</td>
-                    <td className="px-3 py-2 text-gray-700">{r.amount || "—"}</td>
                     <td className="px-3 py-2 font-mono text-gray-700">{r.payoutUtr || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.operatedCurrency || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.withdrawalAmount || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.platformAmount || "—"}</td>
                     <td className="px-3 py-2 text-red-600">{r.errors.join("; ")}</td>
                   </tr>
                 ))}
@@ -493,9 +504,11 @@ function ReviewStep({
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Row</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Trader Wallet Id</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Reference Number</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Currency</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Amount</th>
-                  <th className="px-3 py-2 text-left font-medium text-green-800">Payable</th>
-                  <th className="px-3 py-2 text-left font-medium text-green-800">Payout Reference Number</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Rate</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Platform amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-100">
@@ -503,9 +516,11 @@ function ReviewStep({
                   <tr key={i} className="bg-white hover:bg-green-50/50">
                     <td className="px-3 py-2 text-gray-600">{r.row}</td>
                     <td className="px-3 py-2 text-gray-700">{r.playerIdLabel || "—"}</td>
-                    <td className="px-3 py-2 text-gray-700">{r.amount.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-gray-700">{r.payableAmount.toLocaleString()}</td>
                     <td className="px-3 py-2 font-mono text-gray-700">{r.payoutUtr || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.operatedCurrency}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.operatedAmount.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.exchangeRate}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.amount.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

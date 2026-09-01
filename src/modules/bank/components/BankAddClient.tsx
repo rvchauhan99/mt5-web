@@ -15,7 +15,7 @@ import {
   toMoneyFxPayload,
 } from "@/components/common/OperatedMoneyFields";
 import { usePlatformSettings } from "@/context/PlatformSettingsContext";
-import { createBank } from "@/services/bankService";
+import { createBank, listBanksNormalized } from "@/services/bankService";
 import {
   listPaymentMethodLookupOptions,
   type LookupPaymentMethodOption,
@@ -35,6 +35,8 @@ export function BankAddClient() {
   const [openingMoney, setOpeningMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
   const [loading, setLoading] = useState(false);
   const [methodsLoading, setMethodsLoading] = useState(true);
+  const [existingLoading, setExistingLoading] = useState(false);
+  const [isExistingAccount, setIsExistingAccount] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<LookupPaymentMethodOption[]>([]);
   const [errors, setErrors] = useState<{
     method?: string;
@@ -73,6 +75,50 @@ export function BankAddClient() {
     };
   }, []);
 
+  useEffect(() => {
+    const method = form.method.trim();
+    if (!method || !platformCurrency) {
+      setIsExistingAccount(false);
+      return;
+    }
+
+    let active = true;
+    setExistingLoading(true);
+    listBanksNormalized({ method, limit: 1, page: 1 })
+      .then(({ data }) => {
+        if (!active) return;
+        const existing = data[0];
+        if (!existing) {
+          setIsExistingAccount(false);
+          setOpeningMoney(defaultOperatedMoneyValue(platformCurrency));
+          return;
+        }
+
+        setIsExistingAccount(true);
+        setForm((prev) => ({
+          ...prev,
+          status: existing.status,
+        }));
+        setOpeningMoney({
+          amount: String(existing.openingOperatedAmount ?? existing.openingBalance ?? 0),
+          operatedCurrency: existing.openingOperatedCurrency || platformCurrency,
+          exchangeRate: String(existing.openingExchangeRate ?? 1),
+        });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        toast.error(getApiErrorMessage(error, "Failed to load existing payment account"));
+        setIsExistingAccount(false);
+      })
+      .finally(() => {
+        if (active) setExistingLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [form.method, platformCurrency]);
+
   const reset = () => {
     setForm({
       ...initialState,
@@ -80,6 +126,7 @@ export function BankAddClient() {
     });
     setOpeningMoney(defaultOperatedMoneyValue(platformCurrency));
     setErrors({});
+    setIsExistingAccount(false);
   };
 
   const onSubmit = async () => {
@@ -112,7 +159,7 @@ export function BankAddClient() {
 
     setLoading(true);
     try {
-      await createBank({
+      const { created } = await createBank({
         method: form.method.trim(),
         status: form.status,
         openingBalance: fx.amount,
@@ -120,10 +167,16 @@ export function BankAddClient() {
         openingOperatedAmount: fx.operatedAmount,
         openingExchangeRate: fx.exchangeRate,
       });
-      toast.success("Payment account created successfully.");
-      reset();
+      toast.success(
+        created ? "Payment account created successfully." : "Payment account updated successfully.",
+      );
+      if (created) {
+        reset();
+      } else {
+        setIsExistingAccount(true);
+      }
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, "Failed to create bank account"));
+      toast.error(getApiErrorMessage(error, "Failed to save payment account"));
     } finally {
       setLoading(false);
     }
@@ -132,8 +185,12 @@ export function BankAddClient() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 pb-4">
       <FormContainer
-        title="Add Payment Account"
-        description="Create a payment account with opening balance. Manage methods in Masters → Payment Method."
+        title={isExistingAccount ? "Update Payment Account" : "Add Payment Account"}
+        description={
+          isExistingAccount
+            ? "This payment method already has an account. Saving will update its opening balance and status."
+            : "Create a payment account with opening balance. Manage methods in Masters → Payment Method."
+        }
       >
         <FormGrid>
           <div>
@@ -141,7 +198,7 @@ export function BankAddClient() {
             <Select
               value={form.method}
               onChange={(e) => setForm((p) => ({ ...p, method: e.target.value }))}
-              disabled={methodsLoading || paymentMethods.length === 0}
+              disabled={methodsLoading || paymentMethods.length === 0 || existingLoading}
             >
               {paymentMethods.length === 0 ? (
                 <option value="">
@@ -187,9 +244,9 @@ export function BankAddClient() {
             variant="success"
             startIcon={<IconCheck size={18} />}
             onClick={onSubmit}
-            disabled={loading || methodsLoading || paymentMethods.length === 0}
+            disabled={loading || methodsLoading || existingLoading || paymentMethods.length === 0}
           >
-            {loading ? "Saving…" : "Save"}
+            {loading ? "Saving…" : isExistingAccount ? "Update" : "Save"}
           </Button>
           <Button type="button" variant="danger" startIcon={<IconX size={18} />} onClick={reset} disabled={loading}>
             Cancel

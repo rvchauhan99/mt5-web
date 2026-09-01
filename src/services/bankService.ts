@@ -48,6 +48,12 @@ function normalizeBank(row: Record<string, unknown>): BankRow {
       accountNumber: String(row.accountNumber ?? ""),
     }),
     openingBalance: Number(row.openingBalance ?? 0),
+    openingOperatedCurrency:
+      row.openingOperatedCurrency != null ? String(row.openingOperatedCurrency) : undefined,
+    openingOperatedAmount:
+      row.openingOperatedAmount != null ? Number(row.openingOperatedAmount) : undefined,
+    openingExchangeRate:
+      row.openingExchangeRate != null ? Number(row.openingExchangeRate) : undefined,
     currentBalance: row.currentBalance != null ? Number(row.currentBalance) : undefined,
     closingBalanceActual:
       row.closingBalanceActual != null ? Number(row.closingBalanceActual) : undefined,
@@ -174,9 +180,14 @@ export async function exportBanks(params: Record<string, unknown>): Promise<Blob
   return response.data as Blob;
 }
 
-export async function createBank(input: BankCreateInput): Promise<unknown> {
-  const response = await apiClient.post<{ success: boolean; data: unknown }>("/bank", input);
-  return response.data?.data;
+export async function createBank(input: BankCreateInput): Promise<{ data: unknown; created: boolean }> {
+  const response = await apiClient.post<{
+    success: boolean;
+    data: unknown;
+    meta?: { created?: boolean; updated?: boolean };
+  }>("/bank", input);
+  const created = response.data?.meta?.created !== false;
+  return { data: response.data?.data, created };
 }
 
 /** Raw list response `{ success, data, meta }` — for legacy callers (e.g. statement page). */

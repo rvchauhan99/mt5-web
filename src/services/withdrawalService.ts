@@ -442,6 +442,9 @@ export type WithdrawalImportValidRow = {
   bankName: string;
   ifsc: string;
   amount: number;
+  operatedCurrency: string;
+  operatedAmount: number;
+  exchangeRate: number;
   reverseBonus: number;
   payableAmount: number;
   requestedAt?: string;
@@ -461,8 +464,10 @@ export type WithdrawalImportInvalidRow = {
   accountHolderName: string;
   bankName: string;
   ifsc: string;
-  amount: string;
-  reverseBonus: string;
+  operatedCurrency: string;
+  withdrawalAmount: string;
+  exchangeRate: string;
+  platformAmount: string;
   payoutUtr: string;
   payoutSettlementType: string;
   payoutBank: string;
@@ -479,7 +484,10 @@ export type WithdrawalImportValidationResult = {
 export async function downloadWithdrawalImportSample(format: "csv" | "xlsx" = "csv"): Promise<Blob> {
   const response = await apiClient.get("/withdrawal/import/sample", {
     responseType: "blob",
-    params: format === "xlsx" ? { format: "xlsx" } : undefined,
+    params: {
+      ...(format === "xlsx" ? { format: "xlsx" } : {}),
+      _: Date.now(),
+    },
   });
   return response.data as Blob;
 }
@@ -503,6 +511,9 @@ export async function createWithdrawalImportJob(
     bankName: string;
     ifsc: string;
     amount: number;
+    operatedCurrency: string;
+    operatedAmount: number;
+    exchangeRate: number;
     reverseBonus: number;
     requestedAt?: string;
     payoutUtr?: string;

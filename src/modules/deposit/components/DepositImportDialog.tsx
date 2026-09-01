@@ -136,6 +136,9 @@ export function DepositImportDialog({ open, onClose, onSuccess }: Props) {
       const rows = validationResult.validRows.map((r) => ({
         utr: r.utr,
         amount: r.amount,
+        operatedCurrency: r.operatedCurrency,
+        operatedAmount: r.operatedAmount,
+        exchangeRate: r.exchangeRate,
         entryAt: r.entryAt,
         settlementAccountType: r.settlementAccountType,
         bankId: r.bankId,
@@ -209,7 +212,7 @@ export function DepositImportDialog({ open, onClose, onSuccess }: Props) {
 
   function handleDownloadErrors(invalidRows: DepositImportInvalidRow[]) {
     const header =
-      "Row,Date Time,Settlement Type,Bank,Liable Person Name,Trader Wallet Id,Reference Number,Amount,Error";
+      "Row,Entry date & time,Settlement,Bank,Liability person,Reference Number,Operated currency,Amount,Trader Wallet Id,Exchange rate,Platform amount,Error";
     const lines = [header];
     for (const r of invalidRows) {
       lines.push(
@@ -219,9 +222,12 @@ export function DepositImportDialog({ open, onClose, onSuccess }: Props) {
           csvQuote(r.settlementType),
           csvQuote(r.bankAccountNumber),
           csvQuote(r.liablePersonName),
-          csvQuote(r.playerId),
           csvQuote(r.utr),
+          csvQuote(r.operatedCurrency),
           csvQuote(r.amount),
+          csvQuote(r.playerId),
+          csvQuote(r.exchangeRate),
+          csvQuote(r.platformAmount),
           csvQuote(r.errors.join("; ")),
         ].join(","),
       );
@@ -391,13 +397,14 @@ function UploadStep({
       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
         <p className="text-sm font-medium text-gray-700 mb-2">Column guide:</p>
         <div className="text-xs text-gray-600 space-y-1">
-          <p><span className="font-medium">Date Time</span> — DD/MM/YYYY HH:mm or DD/MM/YY HH:mm in your profile timezone (optional, defaults to current). Excel formats (seconds, AM/PM) are accepted; leave blank to use current time.</p>
-          <p><span className="font-medium">Settlement Type</span> — Bank or Person (optional, defaults to Bank)</p>
-          <p><span className="font-medium">Bank</span> — Account Number or Holder Name (required if settlement is Bank)</p>
-          <p><span className="font-medium">Liable Person Name</span> — Required if settlement is Person</p>
-          <p><span className="font-medium">Trader Wallet Id</span> — Exchange trader code (optional)</p>
-          <p><span className="font-medium">Reference Number</span> — Required, must be unique (4-120 chars)</p>
-          <p><span className="font-medium">Amount</span> — Required, whole number, min 1.</p>
+          <p><span className="font-medium">Entry date &amp; time</span> — DD/MM/YYYY HH:mm in your profile timezone (optional; blank uses current time).</p>
+          <p><span className="font-medium">Settlement</span> — Bank or Liability person (optional, defaults to Bank).</p>
+          <p><span className="font-medium">Bank</span> — Account number or holder name (required when settlement is Bank).</p>
+          <p><span className="font-medium">Liability person</span> — Required when settlement is Liability person.</p>
+          <p><span className="font-medium">Reference Number</span> — Required, unique (4–120 characters). Legacy header UTR is accepted.</p>
+          <p><span className="font-medium">Operated currency</span> — Optional; defaults to platform currency. Case-insensitive (e.g. usd, USD).</p>
+          <p><span className="font-medium">Amount</span> — Required in operated currency. Exchange rate is taken from master (1 when same as platform).</p>
+          <p><span className="font-medium">Trader Wallet Id</span> — Required.</p>
         </div>
       </div>
     </div>
@@ -449,7 +456,9 @@ function ReviewStep({
                   <th className="px-3 py-2 text-left font-medium text-red-800">Row</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Trader Wallet Id</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Reference Number</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Currency</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Amount</th>
+                  <th className="px-3 py-2 text-left font-medium text-red-800">Platform amount</th>
                   <th className="px-3 py-2 text-left font-medium text-red-800">Error</th>
                 </tr>
               </thead>
@@ -459,7 +468,9 @@ function ReviewStep({
                     <td className="px-3 py-2 text-gray-600">{r.row}</td>
                     <td className="px-3 py-2 text-gray-700">{r.playerId || "—"}</td>
                     <td className="px-3 py-2 font-mono text-gray-700">{r.utr || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.operatedCurrency || "—"}</td>
                     <td className="px-3 py-2 text-gray-700">{r.amount || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.platformAmount || "—"}</td>
                     <td className="px-3 py-2 text-red-600">{r.errors.join("; ")}</td>
                   </tr>
                 ))}
@@ -486,7 +497,10 @@ function ReviewStep({
                   <th className="px-3 py-2 text-left font-medium text-green-800">Row</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Trader Wallet Id</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Reference Number</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Currency</th>
                   <th className="px-3 py-2 text-left font-medium text-green-800">Amount</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Rate</th>
+                  <th className="px-3 py-2 text-left font-medium text-green-800">Platform amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-green-100">
@@ -495,6 +509,9 @@ function ReviewStep({
                     <td className="px-3 py-2 text-gray-600">{r.row}</td>
                     <td className="px-3 py-2 text-gray-700">{r.playerIdLabel || "—"}</td>
                     <td className="px-3 py-2 font-mono text-gray-700">{r.utr}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.operatedCurrency}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.operatedAmount.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-gray-700">{r.exchangeRate}</td>
                     <td className="px-3 py-2 text-gray-700">{r.amount.toLocaleString()}</td>
                   </tr>
                 ))}
@@ -556,7 +573,7 @@ function ResultContent({ result }: { result: { created: number; errors: Array<{ 
               Successfully imported {result.created} deposit{result.created !== 1 ? "s" : ""}
             </p>
             <p className="mt-1 text-sm text-green-600">
-              All records have been created with &quot;Pending&quot; status and are awaiting exchange approval.
+              All records were imported and exchange-approved automatically when a trader was assigned.
             </p>
           </div>
         </div>

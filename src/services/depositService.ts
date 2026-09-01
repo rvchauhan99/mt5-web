@@ -495,6 +495,9 @@ export type DepositImportValidRow = {
   row: number;
   utr: string;
   amount: number;
+  operatedCurrency: string;
+  operatedAmount: number;
+  exchangeRate: number;
   entryAt?: string;
   settlementAccountType: "bank" | "person";
   bankId?: string;
@@ -514,11 +517,28 @@ export type DepositImportInvalidRow = {
   settlementType: string;
   bankAccountNumber: string;
   liablePersonName: string;
-  playerId: string;
-  bonusAmount: string;
-  utr: string;
+  operatedCurrency: string;
   amount: string;
+  exchangeRate: string;
+  platformAmount: string;
+  playerId: string;
+  utr: string;
   errors: string[];
+};
+
+export type DepositImportCommitRowInput = {
+  utr: string;
+  amount: number;
+  operatedCurrency: string;
+  operatedAmount: number;
+  exchangeRate: number;
+  entryAt?: string;
+  settlementAccountType: "bank" | "person";
+  bankId?: string;
+  liabilityPersonId?: string;
+  playerMongoId?: string;
+  bonusAmount?: number;
+  totalAmount?: number;
 };
 
 export type DepositImportValidationResult = {
@@ -532,7 +552,10 @@ export async function downloadDepositImportSample(
 ): Promise<Blob> {
   const response = await apiClient.get("/deposit/import/sample", {
     responseType: "blob",
-    params: format === "xlsx" ? { format: "xlsx" } : undefined,
+    params: {
+      ...(format === "xlsx" ? { format: "xlsx" } : {}),
+      _: Date.now(),
+    },
   });
   return response.data as Blob;
 }
@@ -549,17 +572,7 @@ export async function validateDepositImport(file: File): Promise<DepositImportVa
 }
 
 export async function commitDepositImport(
-  rows: Array<{
-    utr: string;
-    amount: number;
-    entryAt?: string;
-    settlementAccountType: "bank" | "person";
-    bankId?: string;
-    liabilityPersonId?: string;
-    playerMongoId?: string;
-    bonusAmount?: number;
-    totalAmount?: number;
-  }>,
+  rows: DepositImportCommitRowInput[],
 ): Promise<{ created: number; errors: Array<{ row: number; utr: string; error: string }> }> {
   const response = await apiClient.post<{
     success: boolean;
@@ -569,17 +582,7 @@ export async function commitDepositImport(
 }
 
 export async function createDepositImportJob(
-  rows: Array<{
-    utr: string;
-    amount: number;
-    entryAt?: string;
-    settlementAccountType: "bank" | "person";
-    bankId?: string;
-    liabilityPersonId?: string;
-    playerMongoId?: string;
-    bonusAmount?: number;
-    totalAmount?: number;
-  }>,
+  rows: DepositImportCommitRowInput[],
 ): Promise<{ jobId: string; status: string }> {
   const response = await apiClient.post<{ success: boolean; data: { jobId: string; status: string } }>(
     "/deposit/import/jobs",
