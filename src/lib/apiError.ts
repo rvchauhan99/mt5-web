@@ -51,7 +51,12 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
       const fromDetails = messageFromValidationDetails(err.details);
       if (fromDetails) msg = fromDetails;
     }
-    if (msg === "UTR already exists in another transaction" && err?.details) {
+    if (
+      (msg === "UTR already exists in another transaction" ||
+        msg ===
+          "A duplicate transaction already exists (same trader, settlement account, amount, date, and reference number)") &&
+      err?.details
+    ) {
       const dup = err.details.duplicateTransaction;
       const txType = String(dup?.type ?? "").trim();
       const txId = String(dup?.id ?? "").trim();
@@ -69,6 +74,14 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
     }
     if (typeof msg === "string" && msg.startsWith("UTR already exists in another transaction")) {
       msg = `Reference number${msg.slice(3)}`;
+    }
+    if (
+      typeof msg === "string" &&
+      msg.startsWith(
+        "A duplicate transaction already exists (same trader, settlement account, amount, date, and reference number)",
+      )
+    ) {
+      msg = "Duplicate transaction: same trader, settlement account, amount, date, and reference number";
     }
     return msg;
   }
