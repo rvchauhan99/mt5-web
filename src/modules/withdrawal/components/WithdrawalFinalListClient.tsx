@@ -25,6 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 import { NAV_PERMISSIONS } from "@/lib/constants/navPermissions";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import { listBankLookupOptions } from "@/services/lookupService";
 import { listReasonOptions } from "@/services/reasonService";
 import { REASON_TYPES } from "@/lib/constants/reasonTypes";
@@ -333,19 +334,28 @@ export function WithdrawalFinalListClient() {
         minWidth: 100,
       },
       {
-        field: "operatedCurrency",
-        label: "Operated Currency",
-        render: (row: WithdrawalRow) => row.operatedCurrency || "—",
+        field: "operatedAmount",
+        label: "Operated Amount",
+        render: (row: WithdrawalRow) => (
+          <FxOperatedAmountCell
+            operatedAmount={row.operatedAmount}
+            operatedCurrency={row.operatedCurrency}
+          />
+        ),
         sortable: false,
         minWidth: 120,
       },
       {
-        field: "exchangeRate",
-        label: "Exchange Rate",
-        render: (row: WithdrawalRow) =>
-          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        field: "operatedCurrency",
+        label: "Currency / Rate",
+        render: (row: WithdrawalRow) => (
+          <FxCurrencyRateCell
+            operatedCurrency={row.operatedCurrency}
+            exchangeRate={row.exchangeRate}
+          />
+        ),
         sortable: false,
-        minWidth: 110,
+        minWidth: 120,
       },
       {
         field: "amendmentCount",

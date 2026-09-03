@@ -25,6 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 import { NAV_PERMISSIONS } from "@/lib/constants/navPermissions";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import {
   amendDeposit,
   deleteDeposit,
@@ -387,19 +388,28 @@ export function DepositFinalListClient() {
         sortable: true,
       },
       {
-        field: "operatedCurrency",
-        label: "Operated Currency",
-        render: (row: DepositRow) => row.operatedCurrency || "—",
+        field: "operatedAmount",
+        label: "Operated Amount",
+        render: (row: DepositRow) => (
+          <FxOperatedAmountCell
+            operatedAmount={row.operatedAmount}
+            operatedCurrency={row.operatedCurrency}
+          />
+        ),
         sortable: false,
         minWidth: 120,
       },
       {
-        field: "exchangeRate",
-        label: "Exchange Rate",
-        render: (row: DepositRow) =>
-          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        field: "operatedCurrency",
+        label: "Currency / Rate",
+        render: (row: DepositRow) => (
+          <FxCurrencyRateCell
+            operatedCurrency={row.operatedCurrency}
+            exchangeRate={row.exchangeRate}
+          />
+        ),
         sortable: false,
-        minWidth: 110,
+        minWidth: 120,
       },
       {
         field: "totalAmount",

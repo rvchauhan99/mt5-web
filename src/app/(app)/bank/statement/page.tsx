@@ -27,7 +27,8 @@ import { BRANDING } from "@/lib/constants/branding";
 import { useAuth } from "@/context/AuthContext";
 import { formControlFocus } from "@/lib/formControlClasses";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
-import { formatScaledMoney } from "@/lib/formatMoney";
+import { formatMoney, formatScaledMoney } from "@/lib/formatMoney";
+import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import { bankDisplayLabel } from "@/lib/constants/bankMethods";
 import {
   currentDateTimeLocalValue,
@@ -457,6 +458,60 @@ export default function BankStatementPage() {
             </div>
           </div>
 
+          {/* Operated currency movement — hide when only platform currency */}
+          {(() => {
+            const breakdown = ledger.operatedCurrencyBreakdown ?? []
+            const showBreakdown =
+              breakdown.length > 1 ||
+              (breakdown.length === 1 &&
+                platformCurrency != null &&
+                breakdown[0].currency !== platformCurrency)
+            if (!showBreakdown) return null
+            return (
+              <div className="border-b border-slate-200 bg-slate-50/40 px-4 py-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                  Operated currency movement
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="text-[10px] uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="py-1.5 pr-3 font-semibold">Currency</th>
+                        <th className="py-1.5 px-2 text-right font-semibold text-emerald-700/80">Credits (operated)</th>
+                        <th className="py-1.5 px-2 text-right font-semibold text-rose-700/80">Debits (operated)</th>
+                        <th className="py-1.5 px-2 text-right font-semibold text-emerald-700/80">Credits (platform)</th>
+                        <th className="py-1.5 pl-2 text-right font-semibold text-rose-700/80">Debits (platform)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {breakdown.map((row) => (
+                        <tr key={row.currency}>
+                          <td className="py-1.5 pr-3 font-semibold text-slate-800">{row.currency}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-emerald-700">
+                            {row.creditOperated > 0
+                              ? formatMoney(row.creditOperated, row.currency)
+                              : "—"}
+                          </td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-rose-700">
+                            {row.debitOperated > 0
+                              ? formatMoney(row.debitOperated, row.currency)
+                              : "—"}
+                          </td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-emerald-700">
+                            {row.creditPlatform > 0 ? formatAmount(row.creditPlatform) : "—"}
+                          </td>
+                          <td className="py-1.5 pl-2 text-right tabular-nums text-rose-700">
+                            {row.debitPlatform > 0 ? formatAmount(row.debitPlatform) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Bonus Memo Strip (if any bonus given/reversed) */}
           {(ledger.totalBonusGiven > 0 || ledger.totalBonusReversed > 0) && (
             <div className="bg-amber-50/50 border-b border-amber-100/50 px-6 py-2 flex items-center gap-6">
@@ -484,8 +539,8 @@ export default function BankStatementPage() {
                   <th className="py-3 px-4 w-[160px]">Date & Time</th>
                   <th className="py-3 px-4">Description</th>
                   <th className="py-3 px-4 w-[160px]">Trader / Ref</th>
-                  <th className="py-3 px-4 w-[110px]">Operated Currency</th>
-                  <th className="py-3 px-4 text-right w-[110px]">Exchange Rate</th>
+                  <th className="py-3 px-4 text-right w-[120px]">Operated Amount</th>
+                  <th className="py-3 px-4 w-[120px]">Currency / Rate</th>
                   <th className="py-3 px-4 text-right w-[120px]">Credit (CR)</th>
                   <th className="py-3 px-4 text-right w-[120px]">Debit (DR)</th>
                   <th className="py-3 px-4 text-right w-[140px] bg-slate-100/50 border-l border-slate-200 text-slate-800">Balance</th>
@@ -530,11 +585,17 @@ export default function BankStatementPage() {
                         {r.playerName && <div className="font-medium text-slate-700 truncate max-w-[140px]" title={r.playerName}>{r.playerName}</div>}
                         {r.createdByName && <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[140px]">By: {r.createdByName}</div>}
                       </td>
-                      <td className="py-3 px-4 text-slate-700">
-                        {r.operatedCurrency || "—"}
+                      <td className="py-3 px-4 text-right text-slate-700">
+                        <FxOperatedAmountCell
+                          operatedAmount={r.operatedAmount}
+                          operatedCurrency={r.operatedCurrency}
+                        />
                       </td>
-                      <td className="py-3 px-4 text-right tabular-nums text-slate-700">
-                        {r.exchangeRate != null && Number.isFinite(r.exchangeRate) ? String(r.exchangeRate) : "—"}
+                      <td className="py-3 px-4 text-slate-700">
+                        <FxCurrencyRateCell
+                          operatedCurrency={r.operatedCurrency}
+                          exchangeRate={r.exchangeRate}
+                        />
                       </td>
                       <td className="py-3 px-4 text-right">
                         {r.direction === "credit" ? (

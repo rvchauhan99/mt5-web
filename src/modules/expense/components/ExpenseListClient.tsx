@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { useListingQueryStateReference } from "@/hooks/useListingQueryStateReference";
 import { tableColumnPresets } from "@/lib/tableStylePresets";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import { getApiErrorMessage } from "@/lib/apiError";
 import {
   cancelApprovedExpense,
@@ -194,19 +195,28 @@ export function ExpenseListClient() {
         render: (row: ExpenseRow) => (row.amount != null ? row.amount.toLocaleString() : "—"),
       },
       {
-        field: "operatedCurrency",
-        label: "Operated Currency",
-        render: (row: ExpenseRow) => row.operatedCurrency || "—",
+        field: "operatedAmount",
+        label: "Operated Amount",
+        render: (row: ExpenseRow) => (
+          <FxOperatedAmountCell
+            operatedAmount={row.operatedAmount}
+            operatedCurrency={row.operatedCurrency}
+          />
+        ),
         sortable: false,
         minWidth: 120,
       },
       {
-        field: "exchangeRate",
-        label: "Exchange Rate",
-        render: (row: ExpenseRow) =>
-          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        field: "operatedCurrency",
+        label: "Currency / Rate",
+        render: (row: ExpenseRow) => (
+          <FxCurrencyRateCell
+            operatedCurrency={row.operatedCurrency}
+            exchangeRate={row.exchangeRate}
+          />
+        ),
         sortable: false,
-        minWidth: 110,
+        minWidth: 120,
       },
       {
         field: "status",

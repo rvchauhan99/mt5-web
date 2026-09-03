@@ -205,10 +205,19 @@ export type BankLedgerRow = {
   createdByName?: string;
   amount: number;
   operatedCurrency?: string;
+  operatedAmount?: number;
   exchangeRate?: number;
   direction: "credit" | "debit";
   balanceAfter: number;
   bonusMemo?: number;
+};
+
+export type BankOperatedCurrencyBreakdown = {
+  currency: string;
+  creditOperated: number;
+  debitOperated: number;
+  creditPlatform: number;
+  debitPlatform: number;
 };
 
 export type BankLedgerResponse = {
@@ -228,6 +237,7 @@ export type BankLedgerResponse = {
   totalDebits: number;
   totalBonusGiven: number;
   totalBonusReversed: number;
+  operatedCurrencyBreakdown?: BankOperatedCurrencyBreakdown[];
   rows: BankLedgerRow[];
 };
 

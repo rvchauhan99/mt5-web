@@ -46,6 +46,7 @@ import type {
 import { getApiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/cn";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import {
   withdrawalStatusApiParam,
   withdrawalStatusColumnSelectValue,
@@ -610,19 +611,28 @@ export function WithdrawalExchangeClient() {
         minWidth: 100,
       },
       {
-        field: "operatedCurrency",
-        label: "Operated Currency",
-        render: (row: WithdrawalRow) => row.operatedCurrency || "—",
+        field: "operatedAmount",
+        label: "Operated Amount",
+        render: (row: WithdrawalRow) => (
+          <FxOperatedAmountCell
+            operatedAmount={row.operatedAmount}
+            operatedCurrency={row.operatedCurrency}
+          />
+        ),
         sortable: false,
         minWidth: 120,
       },
       {
-        field: "exchangeRate",
-        label: "Exchange Rate",
-        render: (row: WithdrawalRow) =>
-          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        field: "operatedCurrency",
+        label: "Currency / Rate",
+        render: (row: WithdrawalRow) => (
+          <FxCurrencyRateCell
+            operatedCurrency={row.operatedCurrency}
+            exchangeRate={row.exchangeRate}
+          />
+        ),
         sortable: false,
-        minWidth: 110,
+        minWidth: 120,
       },
       {
         field: "status",

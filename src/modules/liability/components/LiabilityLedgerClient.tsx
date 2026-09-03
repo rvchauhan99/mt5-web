@@ -34,6 +34,7 @@ import {
   liabilitySideFromSigned,
 } from "@/lib/liabilityDisplay";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import { DATE_PRESETS } from "@/modules/dashboard/components/DashboardFilterBar";
 import { cn } from "@/lib/cn";
 import { BRANDING } from "@/lib/constants/branding";
@@ -451,8 +452,8 @@ export function LiabilityLedgerClient() {
                   <th className="py-3 px-4 w-[180px]">Date & Time</th>
                   <th className="py-3 px-4">Type / Description</th>
                   <th className="py-3 px-4">From / To</th>
-                  <th className="py-3 px-4 w-[110px]">Operated Currency</th>
-                  <th className="py-3 px-4 text-right w-[110px]">Exchange Rate</th>
+                  <th className="py-3 px-4 text-right w-[120px]">Operated Amount</th>
+                  <th className="py-3 px-4 w-[120px]">Currency / Rate</th>
                   <th className="py-3 px-4 text-right w-[120px]">Inward (DR)</th>
                   <th className="py-3 px-4 text-right w-[120px]">Outward (CR)</th>
                   <th className="py-3 px-4 text-right w-[160px] bg-slate-100/50 border-l border-slate-200 text-slate-800">Balance</th>
@@ -487,11 +488,17 @@ export function LiabilityLedgerClient() {
                            <span className="text-[10px] text-slate-400">T:</span> {r.to}
                          </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-700">
-                        {r.operatedCurrency || "—"}
+                      <td className="py-3 px-4 text-right text-slate-700">
+                        <FxOperatedAmountCell
+                          operatedAmount={r.operatedAmount}
+                          operatedCurrency={r.operatedCurrency}
+                        />
                       </td>
-                      <td className="py-3 px-4 text-right tabular-nums text-slate-700">
-                        {r.exchangeRate != null && Number.isFinite(r.exchangeRate) ? String(r.exchangeRate) : "—"}
+                      <td className="py-3 px-4 text-slate-700">
+                        <FxCurrencyRateCell
+                          operatedCurrency={r.operatedCurrency}
+                          exchangeRate={r.exchangeRate}
+                        />
                       </td>
                       <td className="py-3 px-4 text-right">
                         {r.debit > 0 ? (
