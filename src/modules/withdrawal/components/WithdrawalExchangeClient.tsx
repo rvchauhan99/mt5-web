@@ -610,6 +610,21 @@ export function WithdrawalExchangeClient() {
         minWidth: 100,
       },
       {
+        field: "operatedCurrency",
+        label: "Operated Currency",
+        render: (row: WithdrawalRow) => row.operatedCurrency || "—",
+        sortable: false,
+        minWidth: 120,
+      },
+      {
+        field: "exchangeRate",
+        label: "Exchange Rate",
+        render: (row: WithdrawalRow) =>
+          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        sortable: false,
+        minWidth: 110,
+      },
+      {
         field: "status",
         label: "Status",
         filterType: "select" as const,

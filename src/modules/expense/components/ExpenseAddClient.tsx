@@ -497,6 +497,21 @@ export function ExpenseAddClient() {
         operatorKey: "amount_op",
       },
       {
+        field: "operatedCurrency",
+        label: "Operated Currency",
+        render: (row: ExpenseRow) => row.operatedCurrency || "—",
+        sortable: false,
+        minWidth: 120,
+      },
+      {
+        field: "exchangeRate",
+        label: "Exchange Rate",
+        render: (row: ExpenseRow) =>
+          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        sortable: false,
+        minWidth: 110,
+      },
+      {
         field: "status",
         label: "Status",
         ...tableColumnPresets.statusCol,

@@ -451,6 +451,8 @@ export function LiabilityLedgerClient() {
                   <th className="py-3 px-4 w-[180px]">Date & Time</th>
                   <th className="py-3 px-4">Type / Description</th>
                   <th className="py-3 px-4">From / To</th>
+                  <th className="py-3 px-4 w-[110px]">Operated Currency</th>
+                  <th className="py-3 px-4 text-right w-[110px]">Exchange Rate</th>
                   <th className="py-3 px-4 text-right w-[120px]">Inward (DR)</th>
                   <th className="py-3 px-4 text-right w-[120px]">Outward (CR)</th>
                   <th className="py-3 px-4 text-right w-[160px] bg-slate-100/50 border-l border-slate-200 text-slate-800">Balance</th>
@@ -459,7 +461,7 @@ export function LiabilityLedgerClient() {
               <tbody className="divide-y divide-slate-100">
                 {ledger.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <p className="text-slate-500 font-medium">No transactions found for the selected period.</p>
                     </td>
                   </tr>
@@ -484,6 +486,12 @@ export function LiabilityLedgerClient() {
                          <div className="text-slate-600">
                            <span className="text-[10px] text-slate-400">T:</span> {r.to}
                          </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700">
+                        {r.operatedCurrency || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-slate-700">
+                        {r.exchangeRate != null && Number.isFinite(r.exchangeRate) ? String(r.exchangeRate) : "—"}
                       </td>
                       <td className="py-3 px-4 text-right">
                         {r.debit > 0 ? (
@@ -516,7 +524,7 @@ export function LiabilityLedgerClient() {
               </tbody>
               <tfoot className="bg-slate-50 border-t-2 border-slate-200 print:table-footer-group">
                 <tr>
-                  <td colSpan={3} className="py-3 px-4 text-right font-semibold text-slate-600 uppercase text-[10px] tracking-wider">
+                  <td colSpan={5} className="py-3 px-4 text-right font-semibold text-slate-600 uppercase text-[10px] tracking-wider">
                     Ledger Totals ({ledger.rows.length} entries)
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-slate-800">

@@ -387,6 +387,21 @@ export function DepositFinalListClient() {
         sortable: true,
       },
       {
+        field: "operatedCurrency",
+        label: "Operated Currency",
+        render: (row: DepositRow) => row.operatedCurrency || "—",
+        sortable: false,
+        minWidth: 120,
+      },
+      {
+        field: "exchangeRate",
+        label: "Exchange Rate",
+        render: (row: DepositRow) =>
+          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        sortable: false,
+        minWidth: 110,
+      },
+      {
         field: "totalAmount",
         label: "Total",
         render: (row: DepositRow) => (row.totalAmount != null ? formatWholeMoney(row.totalAmount) : "—"),

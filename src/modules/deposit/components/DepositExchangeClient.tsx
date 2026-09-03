@@ -667,6 +667,21 @@ export function DepositExchangeClient() {
         defaultFilterOperator: "equals",
       },
       {
+        field: "operatedCurrency",
+        label: "Operated Currency",
+        render: (row: DepositRow) => row.operatedCurrency || "—",
+        sortable: false,
+        minWidth: 120,
+      },
+      {
+        field: "exchangeRate",
+        label: "Exchange Rate",
+        render: (row: DepositRow) =>
+          row.exchangeRate != null && Number.isFinite(row.exchangeRate) ? String(row.exchangeRate) : "—",
+        sortable: false,
+        minWidth: 110,
+      },
+      {
         field: "status",
         label: "Status",
         filterType: "select" as const,

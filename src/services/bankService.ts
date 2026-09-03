@@ -204,6 +204,8 @@ export type BankLedgerRow = {
   playerName?: string;
   createdByName?: string;
   amount: number;
+  operatedCurrency?: string;
+  exchangeRate?: number;
   direction: "credit" | "debit";
   balanceAfter: number;
   bonusMemo?: number;

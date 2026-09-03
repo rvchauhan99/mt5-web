@@ -97,6 +97,8 @@ export type LiabilityLedgerRow = {
   runningBalance: number;
   runningBalanceAbs: number;
   runningBalanceSide: LiabilityBalanceSide;
+  operatedCurrency?: string;
+  exchangeRate?: number;
   referenceNo?: string;
   remark?: string;
 };

@@ -173,6 +173,21 @@ export function LiabilityEntryClient() {
       { field: "fromAccountName", label: "From", render: (r: LiabilityEntryRow) => r.fromAccountName || r.fromAccountId },
       { field: "toAccountName", label: "To", render: (r: LiabilityEntryRow) => r.toAccountName || r.toAccountId },
       { field: "amount", label: "Amount", render: (r: LiabilityEntryRow) => r.amount.toLocaleString(), sortable: true },
+      {
+        field: "operatedCurrency",
+        label: "Operated Currency",
+        render: (r: LiabilityEntryRow) => r.operatedCurrency || "—",
+        sortable: false,
+        minWidth: 120,
+      },
+      {
+        field: "exchangeRate",
+        label: "Exchange Rate",
+        render: (r: LiabilityEntryRow) =>
+          r.exchangeRate != null && Number.isFinite(r.exchangeRate) ? String(r.exchangeRate) : "—",
+        sortable: false,
+        minWidth: 110,
+      },
       { field: "referenceNo", label: "Reference", render: (r: LiabilityEntryRow) => r.referenceNo || "—" },
       { field: "remark", label: "Remark", render: (r: LiabilityEntryRow) => r.remark || "—" },
     ],
