@@ -12,6 +12,9 @@ import {
 import {
   IconChevronDown,
   IconChevronUp,
+  IconDownload,
+  IconFileSpreadsheet,
+  IconFileText,
   IconFilter,
   IconSearch,
   IconX,
@@ -20,6 +23,14 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FieldLabel } from "@/components/common/FieldLabel";
 import { AutocompleteField, type AutocompleteOption } from "@/components/common/AutocompleteField";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/shadcn/dropdown-menu";
 import { DATE_PRESETS } from "@/modules/dashboard/components/DashboardFilterBar";
 import { SUPPORTED_CURRENCIES } from "@/lib/currencies";
 import { cn } from "@/lib/cn";
@@ -68,6 +79,10 @@ type Props = {
   setFilters: (next: Record<string, string>, resetPage?: boolean, debounce?: boolean) => void;
   onClear: () => void;
   defaultOpen?: boolean;
+  exportButtonLabel?: string;
+  onExportClick?: () => void;
+  exportDisabled?: boolean;
+  onPrintClick?: () => void;
 };
 
 export function LiabilityEntryFilterPanel({
@@ -76,7 +91,11 @@ export function LiabilityEntryFilterPanel({
   setQ,
   setFilters,
   onClear,
-  defaultOpen = true,
+  defaultOpen = false,
+  exportButtonLabel = "Export",
+  onExportClick,
+  exportDisabled = false,
+  onPrintClick,
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [quickSearch, setQuickSearch] = useState(q);
@@ -229,7 +248,7 @@ export function LiabilityEntryFilterPanel({
           ))}
         </div>
 
-        <div className="relative w-full shrink-0 sm:w-80">
+        <div className="relative min-w-0 flex-1 sm:max-w-md">
           <IconSearch
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
             aria-hidden
@@ -237,7 +256,7 @@ export function LiabilityEntryFilterPanel({
           <Input
             type="text"
             placeholder="Search reference or remark..."
-            className="h-10 border-[var(--border)] pl-9 pr-8 text-sm"
+            className="h-9 border-[var(--border)] pl-9 pr-8 text-sm"
             value={quickSearch}
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleQuickSearchChange(e.target.value)}
             onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
@@ -260,6 +279,40 @@ export function LiabilityEntryFilterPanel({
             </Button>
           ) : null}
         </div>
+
+        {onExportClick ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-9 shrink-0"
+                disabled={exportDisabled}
+                startIcon={<IconDownload size={16} stroke={1.5} />}
+              >
+                {exportButtonLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="" inset={false}>
+                Choose Format
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onExportClick} className="cursor-pointer">
+                <IconFileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+                <span>Excel (.xlsx)</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onPrintClick || (() => window.print())}
+                className="cursor-pointer"
+              >
+                <IconFileText className="mr-2 h-4 w-4 text-rose-600" />
+                <span>PDF Report (.pdf)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       {open ? (

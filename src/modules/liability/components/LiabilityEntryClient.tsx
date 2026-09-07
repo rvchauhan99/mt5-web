@@ -576,13 +576,9 @@ export function LiabilityEntryClient() {
 
       <ListingPageContainer
         title="Liability Entries"
-        description="Manual bank/person transfers and settlement entries. Settlement legs are locked on amend; amount/date/remark can be changed. Delete clears the source link without cancelling the parent transaction."
+        description="Settlement and manual transfer entries. Use filters to narrow the list; Clear all resets them."
         fullWidth
-        secondaryButtonLabel="Reset filters"
-        onSecondaryClick={() => clearFilters({ keepQuickSearch: true })}
-        exportButtonLabel="Export"
-        onExportClick={onExportClick}
-        exportDisabled={exporting}
+        density="compact"
         filters={
           <LiabilityEntryFilterPanel
             q={q}
@@ -590,6 +586,10 @@ export function LiabilityEntryClient() {
             setQ={setQ}
             setFilters={setFilters}
             onClear={() => clearFilters({ keepQuickSearch: false })}
+            defaultOpen={false}
+            exportButtonLabel="Export"
+            onExportClick={onExportClick}
+            exportDisabled={exporting}
           />
         }
       >
@@ -600,7 +600,7 @@ export function LiabilityEntryClient() {
           filterParams={filterParams}
           showSearch={false}
           showPagination={false}
-          height="420px"
+          height="calc(100vh - 320px)"
           onTotalChange={setTotalCount}
           page={page}
           limit={limit}
