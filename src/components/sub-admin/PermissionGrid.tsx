@@ -20,7 +20,12 @@ type PermissionGridRow = Permission & {
 };
 
 const LIABILITY_PERSON_KEYS = ["liability.person_add", "liability.person_list"] as const;
-const LIABILITY_ENTRY_KEYS = ["liability.entry_add", "liability.entry_list"] as const;
+const LIABILITY_ENTRY_KEYS = [
+  "liability.entry_add",
+  "liability.entry_list",
+  "liability.entry_edit",
+  "liability.entry_delete",
+] as const;
 const LIABILITY_LEDGER_KEY = "liability.ledger_view";
 const LIABILITY_REPORT_KEY = "liability.report_view";
 
@@ -52,8 +57,7 @@ function preprocessPermissionsForGrid(allPermissions: Permission[]): PermissionG
 
   const entryRows = LIABILITY_ENTRY_KEYS.map((k) => byKey.get(k)).filter((v): v is Permission => !!v);
   if (entryRows.length > 0) {
-    hiddenKeys.add(LIABILITY_ENTRY_KEYS[0]);
-    hiddenKeys.add(LIABILITY_ENTRY_KEYS[1]);
+    for (const key of LIABILITY_ENTRY_KEYS) hiddenKeys.add(key);
     rows.push({
       ...entryRows[0],
       module: "liability",

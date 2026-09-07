@@ -3,6 +3,8 @@ import type {
   LiabilityBalanceSide,
   LiabilityEntryCreateInput,
   LiabilityEntryRow,
+  LiabilityEntrySourceType,
+  LiabilityEntryUpdateInput,
   LiabilityLedgerResponse,
   LiabilityLedgerRow,
   LiabilityPersonCreateInput,
@@ -72,6 +74,14 @@ function normalizePerson(row: Record<string, unknown>): LiabilityPersonRow {
 
 function normalizeEntry(row: Record<string, unknown>): LiabilityEntryRow {
   const id = String(row._id ?? row.id ?? "");
+  const rawSource = row.sourceType;
+  const sourceType: LiabilityEntrySourceType | undefined =
+    rawSource === "expense" ||
+    rawSource === "deposit" ||
+    rawSource === "withdrawal" ||
+    rawSource === "referral"
+      ? rawSource
+      : undefined;
   return {
     _id: id,
     id,
@@ -87,8 +97,12 @@ function normalizeEntry(row: Record<string, unknown>): LiabilityEntryRow {
     toAccountType: (row.toAccountType as LiabilityEntryRow["toAccountType"]) ?? "person",
     toAccountId: String(row.toAccountId ?? ""),
     toAccountName: String(row.toAccountName ?? "").trim() || undefined,
-    sourceType: row.sourceType === "expense" ? "expense" : undefined,
+    sourceType,
     sourceExpenseId: row.sourceExpenseId != null ? String(row.sourceExpenseId) : undefined,
+    sourceDepositId: row.sourceDepositId != null ? String(row.sourceDepositId) : undefined,
+    sourceWithdrawalId: row.sourceWithdrawalId != null ? String(row.sourceWithdrawalId) : undefined,
+    sourceReferralAccrualId:
+      row.sourceReferralAccrualId != null ? String(row.sourceReferralAccrualId) : undefined,
     referenceNo: String(row.referenceNo ?? "").trim() || undefined,
     remark: String(row.remark ?? "").trim() || undefined,
     createdAt: row.createdAt != null ? String(row.createdAt) : undefined,
@@ -151,6 +165,15 @@ export async function createLiabilityEntry(input: LiabilityEntryCreateInput): Pr
   return res.data?.data;
 }
 
+export async function updateLiabilityEntry(id: string, input: LiabilityEntryUpdateInput): Promise<unknown> {
+  const res = await apiClient.patch<{ success: boolean; data: unknown }>(`/liability/entries/${id}`, input);
+  return res.data?.data;
+}
+
+export async function deleteLiabilityEntry(id: string): Promise<void> {
+  await apiClient.delete(`/liability/entries/${id}`);
+}
+
 export async function listLiabilityEntriesNormalized(params: Record<string, unknown>): Promise<{
   data: LiabilityEntryRow[];
   meta: { total: number; page: number; pageSize: number };
@@ -172,10 +195,16 @@ export async function listLiabilityEntriesNormalized(params: Record<string, unkn
       sortOrder,
       search: toOptionalParam(str(params, "q")) || undefined,
       entryType: toOptionalParam(str(params, "entryType")),
+      sourceType: toOptionalParam(str(params, "sourceType")),
+      personId: toOptionalParam(str(params, "personId")),
+      bankId: toOptionalParam(str(params, "bankId")),
       accountType: toOptionalParam(str(params, "accountType")),
       accountId: toOptionalParam(str(params, "accountId")),
       entryDate_from: toOptionalParam(str(params, "entryDate_from")),
       entryDate_to: toOptionalParam(str(params, "entryDate_to")),
+      amount_from: toOptionalParam(str(params, "amount_from")),
+      amount_to: toOptionalParam(str(params, "amount_to")),
+      operatedCurrency: toOptionalParam(str(params, "operatedCurrency")),
     },
   });
 
@@ -202,6 +231,13 @@ function normalizeLedgerResponse(data: LiabilityLedgerResponse): LiabilityLedger
         r.runningBalanceSide ?? liabilitySideFromSigned(running),
     };
   });
+  const periodOpening = Number(
+    data.periodOpeningBalance ?? (rows.length > 0 ? rows[0].runningBalance : opening),
+  );
+  const periodClosing = Number(
+    data.periodClosingBalance ??
+      (rows.length > 0 ? rows[rows.length - 1].runningBalance : data.closingBalance ?? opening),
+  );
   return {
     ...data,
     person: {
@@ -209,6 +245,12 @@ function normalizeLedgerResponse(data: LiabilityLedgerResponse): LiabilityLedger
       openingBalanceAbs: data.person.openingBalanceAbs ?? Math.abs(opening),
     },
     rows,
+    periodOpeningBalance: periodOpening,
+    periodOpeningBalanceAbs: data.periodOpeningBalanceAbs ?? Math.abs(periodOpening),
+    periodOpeningSide: data.periodOpeningSide ?? liabilitySideFromSigned(periodOpening),
+    periodClosingBalance: periodClosing,
+    periodClosingBalanceAbs: data.periodClosingBalanceAbs ?? Math.abs(periodClosing),
+    periodClosingSide: data.periodClosingSide ?? liabilitySideFromSigned(periodClosing),
   };
 }
 
@@ -283,8 +325,25 @@ export async function exportLiabilityPersons(params: Record<string, unknown>): P
 }
 
 export async function exportLiabilityEntries(params: Record<string, unknown>): Promise<Blob> {
+  const sortBy = (str(params, "sortBy") || "createdAt") as "createdAt" | "entryDate" | "amount" | "entryType";
+  const sortOrder = str(params, "sortOrder") === "asc" ? "asc" : "desc";
   const response = await apiClient.get("/liability/entries/export", {
-    params,
+    params: {
+      sortBy,
+      sortOrder,
+      search: toOptionalParam(str(params, "q")) || toOptionalParam(str(params, "search")) || undefined,
+      entryType: toOptionalParam(str(params, "entryType")),
+      sourceType: toOptionalParam(str(params, "sourceType")),
+      personId: toOptionalParam(str(params, "personId")),
+      bankId: toOptionalParam(str(params, "bankId")),
+      accountType: toOptionalParam(str(params, "accountType")),
+      accountId: toOptionalParam(str(params, "accountId")),
+      entryDate_from: toOptionalParam(str(params, "entryDate_from")),
+      entryDate_to: toOptionalParam(str(params, "entryDate_to")),
+      amount_from: toOptionalParam(str(params, "amount_from")),
+      amount_to: toOptionalParam(str(params, "amount_to")),
+      operatedCurrency: toOptionalParam(str(params, "operatedCurrency")),
+    },
     responseType: "blob",
   });
   return response.data;

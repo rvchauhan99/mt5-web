@@ -38,20 +38,16 @@ import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/Fx
 import { DATE_PRESETS } from "@/modules/dashboard/components/DashboardFilterBar";
 import { cn } from "@/lib/cn";
 import { BRANDING } from "@/lib/constants/branding";
-import { formatDateTimeForUser, formatYyyyMmDdInTimeZone, resolveUserTimeZone } from "@/lib/userTimezone";
-
-function todayYmdInUserTz(): string {
-  return formatYyyyMmDdInTimeZone(new Date(), resolveUserTimeZone());
-}
+import { formatDateTimeForUser } from "@/lib/userTimezone";
 
 export function LiabilityLedgerClient() {
   const { platformCurrency } = useFormatMoney();
   const fmtLiability = (value: number) => formatLiabilityMoneyAbs(value, platformCurrency);
   const [personId, setPersonId] = useState("");
   const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState(todayYmdInUserTz());
-  const [activePreset, setActivePreset] = useState<string | null>(null);
-  /** Default platform perspective; Person (master) aligns with stored `closingBalance` and rollups for full history. */
+  const [toDate, setToDate] = useState("");
+  const [activePreset, setActivePreset] = useState<string | null>("All time");
+  /** Default platform perspective (same as Liability Persons list). Person (inverse) matches stored person-side rollup. */
   const [viewMode, setViewMode] = useState<LiabilityViewMode>("platform");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +68,12 @@ export function LiabilityLedgerClient() {
     setFromDate(dates.date_from);
     setToDate(dates.date_to);
     setActivePreset(preset.label);
+  };
+
+  const handleAllTime = () => {
+    setFromDate("");
+    setToDate("");
+    setActivePreset("All time");
   };
 
   const onLoad = async () => {
@@ -115,36 +117,16 @@ export function LiabilityLedgerClient() {
 
   const totalCredits = ledger?.rows.reduce((acc, r) => acc + r.credit, 0) ?? 0;
   const totalDebits = ledger?.rows.reduce((acc, r) => acc + r.debit, 0) ?? 0;
-  const runningDeltaForFirstRow = ledger?.rows[0]
-    ? (ledger.viewMode === "person"
-      ? ledger.rows[0].credit - ledger.rows[0].debit
-      : ledger.rows[0].debit - ledger.rows[0].credit)
-    : 0;
 
-  const periodOpeningSigned =
-    ledger?.periodOpeningBalance !== undefined
-      ? ledger.periodOpeningBalance
-      : ledger && ledger.rows.length > 0
-        ? ledger.rows[0].runningBalance - runningDeltaForFirstRow
-        : (ledger?.person.openingBalance ?? 0);
-
-  const periodOpeningAbs =
-    ledger?.periodOpeningBalanceAbs ?? Math.abs(periodOpeningSigned);
+  const periodOpeningSigned = ledger?.periodOpeningBalance ?? 0;
+  const periodOpeningAbs = ledger?.periodOpeningBalanceAbs ?? Math.abs(periodOpeningSigned);
   const periodOpeningSide: LiabilityBalanceSide =
     ledger?.periodOpeningSide ?? liabilitySideFromSigned(periodOpeningSigned);
 
-  const periodClosingSigned =
-    ledger && ledger.rows.length > 0
-      ? ledger.rows[ledger.rows.length - 1].runningBalance
-      : (ledger?.closingBalance ?? 0);
-  const periodClosingAbs =
-    ledger && ledger.rows.length > 0
-      ? ledger.rows[ledger.rows.length - 1].runningBalanceAbs
-      : Math.abs(ledger?.closingBalance ?? 0);
+  const periodClosingSigned = ledger?.periodClosingBalance ?? 0;
+  const periodClosingAbs = ledger?.periodClosingBalanceAbs ?? Math.abs(periodClosingSigned);
   const closingSide: LiabilityBalanceSide =
-    ledger && ledger.rows.length > 0
-      ? ledger.rows[ledger.rows.length - 1].runningBalanceSide
-      : ledger?.closingSide ?? liabilitySideFromSigned(ledger?.closingBalance ?? 0);
+    ledger?.periodClosingSide ?? liabilitySideFromSigned(periodClosingSigned);
 
   const balanceType =
     closingSide === "receivable"
@@ -259,6 +241,17 @@ export function LiabilityLedgerClient() {
               <IconCalendar className="w-4 h-4 text-slate-400" />
               <span className="text-[11px] uppercase font-semibold tracking-wider text-slate-500 mr-2">Range:</span>
               <div className="flex flex-wrap gap-1">
+                <Button
+                  size="xs"
+                  variant={activePreset === "All time" ? "primary" : "secondary"}
+                  onClick={handleAllTime}
+                  className={cn(
+                    "text-[10px] px-2.5 h-6 rounded-full font-semibold",
+                    activePreset === "All time" ? "shadow-sm" : "bg-white border-slate-200 font-medium",
+                  )}
+                >
+                  All time
+                </Button>
                 {DATE_PRESETS.filter(p => !['Last 6M', 'This Year'].includes(p.label)).map((p) => (
                   <Button
                     key={p.label}
@@ -302,19 +295,6 @@ export function LiabilityLedgerClient() {
                 <button
                   type="button"
                   onClick={() => {
-                    setViewMode("person");
-                    setLedger(null);
-                  }}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-[10px] font-semibold transition-colors",
-                    viewMode === "person" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  Person (master)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
                     setViewMode("platform");
                     setLedger(null);
                   }}
@@ -324,6 +304,19 @@ export function LiabilityLedgerClient() {
                   )}
                 >
                   Platform
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("person");
+                    setLedger(null);
+                  }}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[10px] font-semibold transition-colors",
+                    viewMode === "person" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  Person (inverse)
                 </button>
               </div>
             </div>
@@ -439,8 +432,8 @@ export function LiabilityLedgerClient() {
              </span>
              <span className="text-[10px] text-slate-500 ml-2">
                {ledger.viewMode === "person"
-                 ? "Person-side view — closing matches the Liability Person master total for full history."
-                 : "Platform-side view — running balance uses the inverted sign convention from the master list."}
+                 ? "Person (inverse) view — closing matches stored person rollups (opening − inward + outward)."
+                 : "Platform-side view — same convention as Liability Persons closing (opening + inward − outward)."}
              </span>
           </div>
 

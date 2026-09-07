@@ -29,7 +29,8 @@ export type LiabilityPersonRow = {
 };
 
 export type LiabilityEntryType = "receipt" | "payment" | "contra" | "journal";
-export type LiabilityAccountType = "bank" | "person" | "expense";
+export type LiabilityAccountType = "bank" | "person" | "expense" | "deposit" | "withdrawal" | "referral";
+export type LiabilityEntrySourceType = "expense" | "deposit" | "withdrawal" | "referral";
 
 export type LiabilityEntryRow = {
   _id: string;
@@ -46,8 +47,11 @@ export type LiabilityEntryRow = {
   toAccountType: LiabilityAccountType;
   toAccountId: string;
   toAccountName?: string;
-  sourceType?: "expense";
+  sourceType?: LiabilityEntrySourceType;
   sourceExpenseId?: string;
+  sourceDepositId?: string;
+  sourceWithdrawalId?: string;
+  sourceReferralAccrualId?: string;
   referenceNo?: string;
   remark?: string;
   createdAt?: string;
@@ -86,6 +90,22 @@ export type LiabilityEntryCreateInput = {
   remark?: string;
 };
 
+/** Settlement amend may omit legs; server keeps existing from/to and source links. */
+export type LiabilityEntryUpdateInput = {
+  entryDate: string;
+  entryType?: LiabilityEntryType;
+  amount: number;
+  operatedCurrency?: string;
+  operatedAmount?: number;
+  exchangeRate?: number;
+  fromAccountType?: LiabilityAccountType;
+  fromAccountId?: string;
+  toAccountType?: LiabilityAccountType;
+  toAccountId?: string;
+  referenceNo?: string;
+  remark?: string;
+};
+
 export type LiabilityLedgerRow = {
   _id: string;
   at: string;
@@ -114,11 +134,15 @@ export type LiabilityLedgerResponse = {
     openingSide?: LiabilityBalanceSide;
   };
   rows: LiabilityLedgerRow[];
+  /** Full-history closing (all entries), regardless of date filter. */
   closingBalance: number;
   closingSide?: LiabilityBalanceSide;
-  periodOpeningBalance?: number;
-  periodOpeningBalanceAbs?: number;
-  periodOpeningSide?: LiabilityBalanceSide;
+  periodOpeningBalance: number;
+  periodOpeningBalanceAbs: number;
+  periodOpeningSide: LiabilityBalanceSide;
+  periodClosingBalance: number;
+  periodClosingBalanceAbs: number;
+  periodClosingSide: LiabilityBalanceSide;
 };
 
 export type LiabilitySummaryReport = {

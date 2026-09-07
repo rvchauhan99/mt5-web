@@ -181,13 +181,17 @@ export function LiabilityPersonClient() {
       },
       {
         field: "totalDebits",
-        label: "Total Debits",
-        render: (r: LiabilityPersonRow) => r.totalDebits.toLocaleString(),
+        label: "Inward (DR)",
+        render: (r: LiabilityPersonRow) => (
+          <span className="tabular-nums text-slate-800">{fmtLiability(r.totalDebits)}</span>
+        ),
       },
       {
         field: "totalCredits",
-        label: "Total Credits",
-        render: (r: LiabilityPersonRow) => r.totalCredits.toLocaleString(),
+        label: "Outward (CR)",
+        render: (r: LiabilityPersonRow) => (
+          <span className="tabular-nums text-slate-800">{fmtLiability(r.totalCredits)}</span>
+        ),
       },
       {
         field: "closingBalance",
@@ -324,7 +328,7 @@ export function LiabilityPersonClient() {
 
       <ListingPageContainer
         title="Liability Persons"
-        description="Debtor/Creditor master records. Closing balance uses platform perspective (same as Liability Ledger → Platform)."
+        description="Debtor/Creditor master. Platform closing = opening + inward (DR) − outward (CR). Deposit via person is inward; withdrawal/expense via person is outward."
         fullWidth
         secondaryButtonLabel="Reset filters"
         onSecondaryClick={() => clearFilters({ keepQuickSearch: true })}
