@@ -39,6 +39,7 @@ const DateField = DateFieldReference as ComponentType<{
 
 import { AutocompleteField } from "@/components/common/AutocompleteField";
 import { listBankLookupOptions, listExpenseTypeLookupOptions } from "@/services/lookupService";
+import { listLiabilityPersonsNormalized } from "@/services/liabilityService";
 import { userService } from "@/services/userService";
 import {
   EXPENSE_FINAL_FILTER_KEYS,
@@ -63,6 +64,7 @@ const CHIP_LABELS: Partial<Record<ExpenseFinalFilterKey | "q", string>> = {
   q: "Search",
   expenseTypeId: "Type",
   bankId: "Bank",
+  liabilityPersonId: "Liable person",
   status: "Status",
   amount: "Amount",
   createdBy: "Created by",
@@ -193,6 +195,21 @@ export function ExpenseFinalListFilterPanel({
     }
   }, []);
 
+  const loadLiabilityPersonOptions = useCallback(async (query: string) => {
+    try {
+      const res = await listLiabilityPersonsNormalized({
+        page: 1,
+        limit: 30,
+        q: query,
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+      return res.data.map((p) => ({ value: p.id, label: p.name }));
+    } catch {
+      return [];
+    }
+  }, []);
+
   const loadTypeOptions = useCallback(async (query: string) => {
     try {
       const rows = await listExpenseTypeLookupOptions({ q: query || undefined, limit: 50 });
@@ -215,6 +232,7 @@ export function ExpenseFinalListFilterPanel({
       ...emptyExpenseFinalFilters(),
       expenseTypeId: local.expenseTypeId,
       bankId: local.bankId,
+      liabilityPersonId: local.liabilityPersonId,
       status: local.status,
       ...buildAmountApiParams(local.amount, local.amount_to),
       createdBy: local.createdBy,
@@ -369,6 +387,16 @@ export function ExpenseFinalListFilterPanel({
               onChange={(v) => handleChange("bankId", v)}
               loadOptions={loadBankOptions}
               placeholder="All banks…"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-600">Liable person</Label>
+            <AutocompleteField
+              value={local.liabilityPersonId}
+              onChange={(v) => handleChange("liabilityPersonId", v)}
+              loadOptions={loadLiabilityPersonOptions}
+              placeholder="All liable persons…"
             />
           </div>
 

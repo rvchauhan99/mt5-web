@@ -430,6 +430,7 @@ export async function listExpensesNormalized(params: Record<string, unknown>): P
       status: toOptionalParam(str(params, "status")),
       expenseTypeId: toOptionalParam(str(params, "expenseTypeId")),
       bankId: toOptionalParam(str(params, "bankId")),
+      liabilityPersonId: toOptionalParam(str(params, "liabilityPersonId")),
       amount: toOptionalParam(str(params, "amount")),
       amount_to: toOptionalParam(str(params, "amount_to")),
       amount_op: toOptionalParam(str(params, "amount_op")),

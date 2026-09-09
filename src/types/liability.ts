@@ -124,6 +124,14 @@ export type LiabilityLedgerRow = {
   remark?: string;
 };
 
+export type LiabilityOperatedCurrencyBreakdown = {
+  currency: string;
+  creditOperated: number;
+  debitOperated: number;
+  creditPlatform: number;
+  debitPlatform: number;
+};
+
 export type LiabilityLedgerResponse = {
   viewMode?: LiabilityViewMode;
   person: {
@@ -143,6 +151,7 @@ export type LiabilityLedgerResponse = {
   periodClosingBalance: number;
   periodClosingBalanceAbs: number;
   periodClosingSide: LiabilityBalanceSide;
+  operatedCurrencyBreakdown?: LiabilityOperatedCurrencyBreakdown[];
 };
 
 export type LiabilitySummaryReport = {

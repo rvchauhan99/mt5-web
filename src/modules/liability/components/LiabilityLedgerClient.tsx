@@ -34,6 +34,7 @@ import {
   liabilitySideFromSigned,
 } from "@/lib/liabilityDisplay";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
+import { formatMoney } from "@/lib/formatMoney";
 import { FxCurrencyRateCell, FxOperatedAmountCell } from "@/components/common/FxDisplayCells";
 import { DATE_PRESETS } from "@/modules/dashboard/components/DashboardFilterBar";
 import { cn } from "@/lib/cn";
@@ -424,6 +425,67 @@ export function LiabilityLedgerClient() {
               </span>
             </div>
           </div>
+
+          {(() => {
+            const breakdown = ledger.operatedCurrencyBreakdown ?? [];
+            const showBreakdown =
+              breakdown.length > 1 ||
+              (breakdown.length === 1 &&
+                platformCurrency != null &&
+                breakdown[0].currency !== platformCurrency);
+            if (!showBreakdown) return null;
+            return (
+              <div className="border-b border-slate-200 bg-slate-50/40 px-4 py-3">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Operated currency movement
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="text-[10px] uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="py-1.5 pr-3 font-semibold">Currency</th>
+                        <th className="px-2 py-1.5 text-right font-semibold text-emerald-700/80">
+                          Outward / Credits (operated)
+                        </th>
+                        <th className="px-2 py-1.5 text-right font-semibold text-rose-700/80">
+                          Inward / Debits (operated)
+                        </th>
+                        <th className="px-2 py-1.5 text-right font-semibold text-emerald-700/80">
+                          Outward / Credits (platform)
+                        </th>
+                        <th className="py-1.5 pl-2 text-right font-semibold text-rose-700/80">
+                          Inward / Debits (platform)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {breakdown.map((row) => (
+                        <tr key={row.currency}>
+                          <td className="py-1.5 pr-3 font-semibold text-slate-800">{row.currency}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-emerald-700">
+                            {row.creditOperated > 0
+                              ? formatMoney(row.creditOperated, row.currency)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-rose-700">
+                            {row.debitOperated > 0
+                              ? formatMoney(row.debitOperated, row.currency)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-emerald-700">
+                            {row.creditPlatform > 0 ? fmtLiability(row.creditPlatform) : "—"}
+                          </td>
+                          <td className="py-1.5 pl-2 text-right tabular-nums text-rose-700">
+                            {row.debitPlatform > 0 ? fmtLiability(row.debitPlatform) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Help Note */}
           <div className="bg-slate-50/50 border-b border-slate-100 px-6 py-2">

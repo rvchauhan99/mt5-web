@@ -3,6 +3,7 @@ export const EXPENSE_FINAL_FILTER_KEYS = [
   "q",
   "status",
   "bankId",
+  "liabilityPersonId",
   "expenseTypeId",
   "amount",
   "amount_to",

@@ -94,6 +94,7 @@ export function ExpenseListClient() {
       status: toOptionalFilterValue(filters.status || ""),
       expenseTypeId: toOptionalFilterValue(filters.expenseTypeId || ""),
       bankId: toOptionalFilterValue(filters.bankId || ""),
+      liabilityPersonId: toOptionalFilterValue(filters.liabilityPersonId || ""),
       amount: toOptionalFilterValue(filters.amount || ""),
       amount_to: toOptionalFilterValue(filters.amount_to || ""),
       amount_op: toOptionalFilterValue(filters.amount_op || ""),
