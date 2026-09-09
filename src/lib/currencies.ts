@@ -107,3 +107,25 @@ export function computePlatformAmount(
   const rate = opCurrency === platformCurrency ? 1 : roundExchangeRate(exchangeRate);
   return roundMoneyToCurrency(normalizedOperated * rate, platformCurrency);
 }
+
+/**
+ * Back-solve exchange rate from platform (final) and operated amounts.
+ * Same currency → 1. Returns NaN when inputs are invalid / operated ≤ 0.
+ */
+export function computeExchangeRateFromAmounts(
+  platformAmount: number,
+  operatedAmount: number,
+  platformCurrency: string,
+  operatedCurrency?: string,
+): number {
+  if (!Number.isFinite(platformAmount) || !Number.isFinite(operatedAmount)) return NaN;
+  if (platformAmount < 0 || operatedAmount <= 0) return NaN;
+
+  const opCurrency = operatedCurrency || platformCurrency;
+  if (opCurrency === platformCurrency) return 1;
+
+  const normalizedPlatform = roundMoneyToCurrency(platformAmount, platformCurrency);
+  const normalizedOperated = roundMoneyToCurrency(operatedAmount, opCurrency);
+  if (normalizedOperated <= 0) return NaN;
+  return roundExchangeRate(normalizedPlatform / normalizedOperated);
+}
