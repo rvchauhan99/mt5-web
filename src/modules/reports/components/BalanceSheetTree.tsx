@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, useCallback, type KeyboardEvent } from "react";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { cn } from "@/lib/cn";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
@@ -10,6 +10,9 @@ interface BalanceSheetTreeProps {
   title: string;
   nodes: BalanceSheetGroupNode[];
   showCompare: boolean;
+  showMovementColumns?: boolean;
+  compactDensity?: boolean;
+  expandAllToken?: number;
   onLedgerClick: (ledger: BalanceSheetLedger) => void;
 }
 
@@ -27,6 +30,18 @@ function collectDefaultExpanded(nodes: BalanceSheetGroupNode[]): Set<string> {
   };
   walk(nodes);
   return set;
+}
+
+function collectAllGroupIds(nodes: BalanceSheetGroupNode[]): Set<string> {
+  const all = new Set<string>();
+  const walk = (list: BalanceSheetGroupNode[]) => {
+    for (const n of list) {
+      all.add(n.groupId);
+      walk(n.subGroups);
+    }
+  };
+  walk(nodes);
+  return all;
 }
 
 function flattenVisible(
@@ -50,10 +65,23 @@ export function BalanceSheetTree({
   title,
   nodes,
   showCompare,
+  showMovementColumns = false,
+  compactDensity = false,
+  expandAllToken = 0,
   onLedgerClick,
 }: BalanceSheetTreeProps) {
   const { formatMoney } = useFormatMoney();
   const [expanded, setExpanded] = useState<Set<string>>(() => collectDefaultExpanded(nodes));
+
+  useEffect(() => {
+    setExpanded(collectDefaultExpanded(nodes));
+  }, [nodes]);
+
+  useEffect(() => {
+    if (expandAllToken > 0) {
+      setExpanded(collectAllGroupIds(nodes));
+    }
+  }, [expandAllToken, nodes]);
 
   const rows = useMemo(() => flattenVisible(nodes, expanded), [nodes, expanded]);
 
@@ -66,21 +94,8 @@ export function BalanceSheetTree({
     });
   }, []);
 
-  const handleExpandAll = () => {
-    const all = new Set<string>();
-    const walk = (list: BalanceSheetGroupNode[]) => {
-      for (const n of list) {
-        all.add(n.groupId);
-        walk(n.subGroups);
-      }
-    };
-    walk(nodes);
-    setExpanded(all);
-  };
-
-  const handleCollapseAll = () => {
-    setExpanded(new Set());
-  };
+  const handleExpandAll = () => setExpanded(collectAllGroupIds(nodes));
+  const handleCollapseAll = () => setExpanded(new Set());
 
   const handleGroupKeyDown = (e: KeyboardEvent, groupId: string) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -90,10 +105,13 @@ export function BalanceSheetTree({
   };
 
   const sectionTotal = nodes.reduce((s, n) => s + n.total, 0);
+  const cellPad = compactDensity ? "py-1.5" : "py-2.5";
+  const baseColSpan =
+    2 + (showMovementColumns ? 3 : 0) + (showCompare ? 2 : 0) + (compactDensity ? 0 : 1);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden print:shadow-none print:break-inside-avoid">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/80 px-4 py-3 no-print">
         <div>
           <h2 className="text-sm font-bold text-slate-900">{title}</h2>
           <p className="text-[11px] text-slate-500 font-medium tabular-nums">
@@ -120,11 +138,21 @@ export function BalanceSheetTree({
         </div>
       </div>
 
-      <div className="max-h-[520px] overflow-auto" role="tree" aria-label={title}>
+      <div
+        className="max-h-[520px] overflow-auto print:max-h-none print:overflow-visible"
+        aria-label={title}
+      >
         <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-500">
+          <thead className="sticky top-0 z-10 bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-500 print:static">
             <tr>
               <th className="py-2 px-4 font-semibold">Particulars</th>
+              {showMovementColumns && (
+                <>
+                  <th className="py-2 px-3 font-semibold text-right w-[100px]">Opening</th>
+                  <th className="py-2 px-3 font-semibold text-right w-[100px]">Debit</th>
+                  <th className="py-2 px-3 font-semibold text-right w-[100px]">Credit</th>
+                </>
+              )}
               <th className="py-2 px-3 font-semibold text-right w-[120px]">Closing</th>
               {showCompare && (
                 <>
@@ -132,16 +160,17 @@ export function BalanceSheetTree({
                   <th className="py-2 px-3 font-semibold text-right w-[100px]">Delta</th>
                 </>
               )}
-              <th className="py-2 px-3 font-semibold text-center w-[56px]">Side</th>
+              {!compactDensity && (
+                <th className="py-2 px-3 font-semibold text-center w-[56px] print:hidden">
+                  Side
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={showCompare ? 5 : 3}
-                  className="py-8 text-center text-slate-400 font-medium"
-                >
+                <td colSpan={baseColSpan} className="py-8 text-center text-slate-400 font-medium">
                   No balances in this section
                 </td>
               </tr>
@@ -154,15 +183,14 @@ export function BalanceSheetTree({
                 return (
                   <tr
                     key={`g-${row.node.groupId}`}
-                    className="hover:bg-slate-50/80 cursor-pointer"
+                    className="hover:bg-slate-50/80 cursor-pointer print:break-inside-avoid"
                     onClick={() => hasChildren && handleToggle(row.node.groupId)}
                     onKeyDown={(e) => hasChildren && handleGroupKeyDown(e, row.node.groupId)}
                     tabIndex={hasChildren ? 0 : undefined}
-                    role="treeitem"
                     aria-expanded={hasChildren ? isOpen : undefined}
                     aria-label={`${row.node.name} ${formatMoney(row.node.total)}`}
                   >
-                    <td className="py-2.5 px-4">
+                    <td className={cn(cellPad, "px-4")}>
                       <div
                         className="flex items-center gap-1.5 font-semibold text-slate-800"
                         style={{ paddingLeft: row.depth * 16 }}
@@ -179,19 +207,38 @@ export function BalanceSheetTree({
                         {row.node.name}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 text-right font-bold tabular-nums text-slate-900">
+                    {showMovementColumns && (
+                      <>
+                        <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-400")}>
+                          —
+                        </td>
+                        <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-400")}>
+                          —
+                        </td>
+                        <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-400")}>
+                          —
+                        </td>
+                      </>
+                    )}
+                    <td
+                      className={cn(
+                        cellPad,
+                        "px-3 text-right font-bold tabular-nums text-slate-900",
+                      )}
+                    >
                       {formatMoney(row.node.total)}
                     </td>
                     {showCompare && (
                       <>
-                        <td className="py-2.5 px-3 text-right tabular-nums text-slate-500">
+                        <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-500")}>
                           {row.node.compareTotal != null
                             ? formatMoney(row.node.compareTotal)
                             : "—"}
                         </td>
                         <td
                           className={cn(
-                            "py-2.5 px-3 text-right tabular-nums font-semibold",
+                            cellPad,
+                            "px-3 text-right tabular-nums font-semibold",
                             (row.node.compareDelta ?? 0) >= 0
                               ? "text-emerald-600"
                               : "text-rose-600",
@@ -203,16 +250,18 @@ export function BalanceSheetTree({
                         </td>
                       </>
                     )}
-                    <td className="py-2.5 px-3 text-center">
-                      <span
-                        className={cn(
-                          "text-[9px] font-bold uppercase tracking-widest",
-                          row.node.side === "asset" ? "text-emerald-600" : "text-rose-600",
-                        )}
-                      >
-                        {row.node.side === "asset" ? "Dr" : "Cr"}
-                      </span>
-                    </td>
+                    {!compactDensity && (
+                      <td className={cn(cellPad, "px-3 text-center print:hidden")}>
+                        <span
+                          className={cn(
+                            "text-[9px] font-bold uppercase tracking-widest",
+                            row.node.side === "asset" ? "text-emerald-600" : "text-rose-600",
+                          )}
+                        >
+                          {row.node.side === "asset" ? "Dr" : "Cr"}
+                        </span>
+                      </td>
+                    )}
                   </tr>
                 );
               }
@@ -220,7 +269,7 @@ export function BalanceSheetTree({
               return (
                 <tr
                   key={`l-${row.groupCode}-${row.ledger.ledgerId}`}
-                  className="hover:bg-brand-primary/5 cursor-pointer"
+                  className="hover:bg-brand-primary/5 cursor-pointer print:break-inside-avoid"
                   onClick={() => onLedgerClick(row.ledger)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -229,10 +278,9 @@ export function BalanceSheetTree({
                     }
                   }}
                   tabIndex={0}
-                  role="treeitem"
                   aria-label={`${row.ledger.name} ledger`}
                 >
-                  <td className="py-2 px-4">
+                  <td className={cn(cellPad, "px-4")}>
                     <div
                       className="text-slate-600 font-medium"
                       style={{ paddingLeft: row.depth * 16 + 18 }}
@@ -240,19 +288,33 @@ export function BalanceSheetTree({
                       {row.ledger.name}
                     </div>
                   </td>
-                  <td className="py-2 px-3 text-right tabular-nums text-slate-700">
+                  {showMovementColumns && (
+                    <>
+                      <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-500")}>
+                        {formatMoney(row.ledger.openingBalance)}
+                      </td>
+                      <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-500")}>
+                        {formatMoney(row.ledger.periodDebits)}
+                      </td>
+                      <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-500")}>
+                        {formatMoney(row.ledger.periodCredits)}
+                      </td>
+                    </>
+                  )}
+                  <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-700")}>
                     {formatMoney(row.ledger.closingBalance)}
                   </td>
                   {showCompare && (
                     <>
-                      <td className="py-2 px-3 text-right tabular-nums text-slate-400">
+                      <td className={cn(cellPad, "px-3 text-right tabular-nums text-slate-400")}>
                         {row.ledger.compareClosingBalance != null
                           ? formatMoney(row.ledger.compareClosingBalance)
                           : "—"}
                       </td>
                       <td
                         className={cn(
-                          "py-2 px-3 text-right tabular-nums",
+                          cellPad,
+                          "px-3 text-right tabular-nums",
                           (row.ledger.compareDelta ?? 0) >= 0
                             ? "text-emerald-600"
                             : "text-rose-600",
@@ -264,11 +326,13 @@ export function BalanceSheetTree({
                       </td>
                     </>
                   )}
-                  <td className="py-2 px-3 text-center">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                      {row.ledger.side === "asset" ? "Dr" : "Cr"}
-                    </span>
-                  </td>
+                  {!compactDensity && (
+                    <td className={cn(cellPad, "px-3 text-center print:hidden")}>
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                        {row.ledger.side === "asset" ? "Dr" : "Cr"}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               );
             })}

@@ -110,7 +110,16 @@ export function BalanceSheetKpiStrip({ totals, meta }: BalanceSheetKpiStripProps
           <span className="font-mono text-xs font-bold">{formatMoney(meta.difference)}</span>
         )}
         <span className="text-xs text-slate-500">
-          Gross P&L {formatMoney(totals.grossPL)} · Net P&L {formatMoney(totals.netPL)}
+          Period Gross P&L {formatMoney(totals.grossPL)} · Period Net P&L{" "}
+          {formatMoney(totals.netPL)}
+        </span>
+        {meta.compareFromDate && meta.compareToDate && (
+          <span className="text-xs text-slate-400">
+            Compare {meta.compareFromDate} → {meta.compareToDate}
+          </span>
+        )}
+        <span className="text-xs text-slate-400">
+          {meta.currency} · {meta.timeZone}
         </span>
       </div>
     </div>

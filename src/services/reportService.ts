@@ -5,6 +5,8 @@ import type {
   BalanceSheetData,
   BalanceSheetDrilldownRow,
   BalanceSheetGroupOption,
+  BalanceSheetMovementRow,
+  BalanceSheetMovementsQueryParams,
   BalanceSheetQueryParams,
 } from "@/types/balanceSheet";
 
@@ -200,6 +202,20 @@ export const reportService = {
     };
   },
 
+  exportBalanceSheetDrilldown: async (params: {
+    fromDate: string;
+    toDate: string;
+    exchangeId?: string;
+    ledgerId: string;
+    ledgerType: string;
+  }) => {
+    const res = await apiClient.get("/reports/balance-sheet/drilldown/export", {
+      params,
+      responseType: "blob",
+    });
+    return res.data as Blob;
+  },
+
   exportBalanceSheet: async (params: BalanceSheetQueryParams) => {
     const res = await apiClient.get("/reports/balance-sheet/export", {
       params: buildBalanceSheetQueryParams(params),
@@ -216,6 +232,31 @@ export const reportService = {
   }) => {
     const res = await apiClient.post("/reports/balance-sheet/snapshot", body);
     return res.data?.data;
+  },
+
+  balanceSheetMovements: async (
+    params: BalanceSheetMovementsQueryParams,
+    signal?: AbortSignal,
+  ): Promise<{
+    rows: BalanceSheetMovementRow[];
+    meta: { page: number; pageSize: number; total: number };
+  }> => {
+    const res = await apiClient.get("/reports/balance-sheet/movements", {
+      params,
+      signal,
+    });
+    return {
+      rows: Array.isArray(res.data?.data) ? res.data.data : [],
+      meta: res.data?.meta ?? { page: 1, pageSize: 25, total: 0 },
+    };
+  },
+
+  exportBalanceSheetMovements: async (params: BalanceSheetMovementsQueryParams) => {
+    const res = await apiClient.get("/reports/balance-sheet/movements/export", {
+      params,
+      responseType: "blob",
+    });
+    return res.data as Blob;
   },
 };
 

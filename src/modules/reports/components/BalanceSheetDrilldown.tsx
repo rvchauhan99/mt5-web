@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { IconX } from "@tabler/icons-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconDownload, IconX } from "@tabler/icons-react";
 import { reportService } from "@/services/reportService";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
-import { getApiErrorMessage } from "@/lib/apiError";
-import { toast } from "sonner";
+import { useExport } from "@/hooks/useExport";
 import type { BalanceSheetDrilldownRow, BalanceSheetLedger } from "@/types/balanceSheet";
 import { Button } from "@/components/ui/Button";
+import PaginatedTableReference from "@/components/common/PaginatedTableReference";
+import { tableColumnPresets } from "@/lib/tableStylePresets";
 
 interface BalanceSheetDrilldownProps {
   open: boolean;
@@ -27,38 +28,108 @@ export function BalanceSheetDrilldown({
   onClose,
 }: BalanceSheetDrilldownProps) {
   const { formatMoney } = useFormatMoney();
-  const [rows, setRows] = useState<BalanceSheetDrilldownRow[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (!open || !ledger) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const result = await reportService.balanceSheetDrilldown({
-          fromDate,
-          toDate,
-          exchangeId: exchangeId || undefined,
-          ledgerId: ledger.ledgerId,
-          ledgerType: ledger.type,
-          page: 1,
-          pageSize: 100,
-        });
-        if (!cancelled) setRows(result.rows);
-      } catch (error: unknown) {
-        if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Failed to load ledger details"));
-          setRows([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
+    setPage(1);
+    setReloadToken((t) => t + 1);
+  }, [open, ledger?.ledgerId, fromDate, toDate, exchangeId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-  }, [open, ledger, fromDate, toDate, exchangeId]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const filterParams = useMemo(
+    () => ({
+      ledgerId: ledger?.ledgerId ?? "",
+      ledgerType: ledger?.type ?? "",
+      fromDate,
+      toDate,
+      exchangeId: exchangeId || "",
+    }),
+    [ledger?.ledgerId, ledger?.type, fromDate, toDate, exchangeId],
+  );
+
+  const fetcher = useCallback(
+    async (params: Record<string, unknown>) => {
+      if (!ledger) return { data: [], meta: { total: 0 } };
+      const result = await reportService.balanceSheetDrilldown({
+        fromDate,
+        toDate,
+        exchangeId: exchangeId || undefined,
+        ledgerId: ledger.ledgerId,
+        ledgerType: ledger.type,
+        page: params.page as number,
+        pageSize: params.limit as number,
+      });
+      return {
+        data: result.rows,
+        meta: { total: result.meta.total },
+      };
+    },
+    [ledger, fromDate, toDate, exchangeId],
+  );
+
+  const { exporting, handleExport } = useExport(
+    (params) => reportService.exportBalanceSheetDrilldown(params as never),
+    {
+      fileName: `balance-sheet-ledger-${ledger?.ledgerId ?? "export"}-${fromDate}-${toDate}.xlsx`,
+    },
+  );
+
+  const columns = useMemo(
+    () => [
+      {
+        field: "date",
+        label: "Date",
+        render: (row: BalanceSheetDrilldownRow) =>
+          row.date ? new Date(row.date).toLocaleDateString("en-IN") : "—",
+        ...tableColumnPresets.dateCol,
+        minWidth: 100,
+      },
+      {
+        field: "type",
+        label: "Type",
+        render: (row: BalanceSheetDrilldownRow) => (
+          <span className="capitalize font-medium">{row.type}</span>
+        ),
+        minWidth: 90,
+      },
+      {
+        field: "amount",
+        label: "Amount",
+        render: (row: BalanceSheetDrilldownRow) => (
+          <span className="tabular-nums font-semibold">{formatMoney(row.amount)}</span>
+        ),
+        minWidth: 110,
+      },
+      {
+        field: "direction",
+        label: "Dir",
+        render: (row: BalanceSheetDrilldownRow) => (
+          <span className="uppercase text-[10px] font-bold text-slate-500">{row.direction}</span>
+        ),
+        minWidth: 56,
+      },
+      {
+        field: "reference",
+        label: "Reference",
+        render: (row: BalanceSheetDrilldownRow) => row.reference || "—",
+        ...tableColumnPresets.nameCol,
+        minWidth: 120,
+      },
+    ],
+    [formatMoney],
+  );
 
   if (!open || !ledger) return null;
 
@@ -67,73 +138,82 @@ export function BalanceSheetDrilldown({
       className="fixed inset-0 z-[80] flex justify-end bg-slate-900/40"
       role="dialog"
       aria-modal="true"
-      aria-label={`Ledger details for ${ledger.name}`}
+      aria-labelledby="bs-drilldown-title"
       onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
     >
       <div
-        className="h-full w-full max-w-lg bg-white shadow-xl flex flex-col"
+        className="h-full w-full max-w-3xl bg-white shadow-xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">{ledger.name}</h2>
+          <div className="min-w-0">
+            <h2 id="bs-drilldown-title" className="text-base font-bold text-slate-900 truncate">
+              {ledger.name}
+            </h2>
             <p className="text-[11px] text-slate-500 mt-0.5">
               {ledger.type} · Closing {formatMoney(ledger.closingBalance)}
             </p>
             <p className="text-[10px] text-slate-400 mt-1">
               {fromDate} → {toDate}
+              {totalCount > 0 ? ` · ${totalCount} movements` : ""}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            aria-label="Close drilldown"
-            className="h-8 w-8 p-0"
-          >
-            <IconX size={16} />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              startIcon={<IconDownload size={14} />}
+              disabled={exporting}
+              onClick={() =>
+                handleExport({
+                  fromDate,
+                  toDate,
+                  exchangeId: exchangeId || undefined,
+                  ledgerId: ledger.ledgerId,
+                  ledgerType: ledger.type,
+                })
+              }
+              className="h-8 text-xs"
+              aria-label="Export ledger movements to Excel"
+            >
+              Export
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              aria-label="Close drilldown"
+              className="h-8 w-8 p-0"
+            >
+              <IconX size={16} />
+            </Button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-auto px-5 py-4">
-          {loading ? (
-            <p className="text-sm text-slate-400">Loading movements…</p>
-          ) : rows.length === 0 ? (
-            <p className="text-sm text-slate-400">
-              No period movements found for this ledger (or drilldown not available for this type).
-            </p>
-          ) : (
-            <table className="w-full text-xs">
-              <thead className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                <tr>
-                  <th className="py-2 text-left font-semibold">Date</th>
-                  <th className="py-2 text-left font-semibold">Type</th>
-                  <th className="py-2 text-right font-semibold">Amount</th>
-                  <th className="py-2 text-left font-semibold pl-3">Dir</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {rows.map((row, idx) => (
-                  <tr key={`${row.type}-${idx}-${row.date}`}>
-                    <td className="py-2 text-slate-600">
-                      {row.date ? new Date(row.date).toLocaleDateString("en-IN") : "—"}
-                    </td>
-                    <td className="py-2 text-slate-700 font-medium capitalize">{row.type}</td>
-                    <td className="py-2 text-right tabular-nums font-semibold text-slate-800">
-                      {formatMoney(row.amount)}
-                    </td>
-                    <td className="py-2 pl-3 uppercase text-[10px] font-bold text-slate-400">
-                      {row.direction}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        <div className="flex-1 overflow-hidden px-3 py-3">
+          <PaginatedTableReference
+            columns={columns}
+            fetcher={fetcher}
+            filterParams={filterParams}
+            page={page}
+            limit={limit}
+            onPageChange={(zeroBased) => setPage(zeroBased + 1)}
+            onRowsPerPageChange={(n) => {
+              setLimit(n);
+              setPage(1);
+            }}
+            onTotalChange={setTotalCount}
+            getRowKey={(row) => {
+              const r = row as BalanceSheetDrilldownRow;
+              return `${r.type}-${String(r.date)}-${r.reference ?? ""}-${r.amount}-${r.direction}`;
+            }}
+            showSearch={false}
+            height="calc(100vh - 220px)"
+            compactDensity
+            reloadToken={reloadToken}
+          />
         </div>
 
         <div className="border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400">

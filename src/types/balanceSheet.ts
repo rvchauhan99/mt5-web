@@ -14,6 +14,21 @@ export type BalanceSheetLedgerType =
 
 export type BalanceSheetCompareMode = "none" | "prior_period" | "yoy" | "qoq";
 
+export type BalanceSheetTabId =
+  | "statement"
+  | "deposits"
+  | "withdrawals"
+  | "expenses"
+  | "liabilities"
+  | "transfers";
+
+export type BalanceSheetMovementType =
+  | "deposit"
+  | "withdrawal"
+  | "expense"
+  | "liability"
+  | "transfer";
+
 export interface BalanceSheetLedger {
   ledgerId: string;
   name: string;
@@ -107,4 +122,29 @@ export interface BalanceSheetGroupOption {
   side: BalanceSheetSide;
   level: number;
   sortOrder: number;
+}
+
+export interface BalanceSheetMovementRow {
+  id: string;
+  date: string | null;
+  type: string;
+  status: string;
+  amount: number;
+  counterparty: string;
+  bank: string;
+  reference: string;
+  description: string;
+}
+
+export interface BalanceSheetMovementsQueryParams {
+  type: BalanceSheetMovementType;
+  fromDate: string;
+  toDate: string;
+  exchangeId?: string;
+  bankId?: string;
+  personId?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
