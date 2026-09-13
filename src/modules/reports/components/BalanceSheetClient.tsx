@@ -144,6 +144,8 @@ export function BalanceSheetClient() {
   const [draft, setDraft] = useState<BalanceSheetFilterValues>(applied);
   const [data, setData] = useState<BalanceSheetData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(false);
+  const [applyToken, setApplyToken] = useState(0);
   const [drillLedger, setDrillLedger] = useState<BalanceSheetLedger | null>(null);
   const [expandAllToken, setExpandAllToken] = useState(0);
   const [savingSnapshot, setSavingSnapshot] = useState(false);
@@ -179,14 +181,21 @@ export function BalanceSheetClient() {
         if (axios.isCancel(error)) return;
         toast.error(getApiErrorMessage(error, "Failed to load balance sheet"));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setApplying(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
       ac.abort();
     };
-  }, [queryParams, activeTab]);
+  }, [queryParams, activeTab, applyToken]);
+
+  useEffect(() => {
+    if (activeTab !== "statement") setApplying(false);
+  }, [activeTab]);
 
   const { exporting, handleExport } = useExport(
     (params) => reportService.exportBalanceSheet(params),
@@ -196,6 +205,7 @@ export function BalanceSheetClient() {
   );
 
   const handleApply = useCallback(() => {
+    if (applying) return;
     if (!draft.fromDate || !draft.toDate) {
       toast.error("From and To dates are required");
       return;
@@ -203,6 +213,22 @@ export function BalanceSheetClient() {
     if (draft.fromDate > draft.toDate) {
       toast.error("From date must be on or before To date");
       return;
+    }
+    const draftMatchesApplied =
+      draft.fromDate === applied.fromDate &&
+      draft.toDate === applied.toDate &&
+      draft.exchangeId === applied.exchangeId &&
+      draft.compare === applied.compare &&
+      draft.showZeroBalances === applied.showZeroBalances &&
+      draft.groupCode === applied.groupCode &&
+      draft.search === applied.search &&
+      draft.showMovementColumns === applied.showMovementColumns &&
+      draft.compactDensity === applied.compactDensity &&
+      draft.summaryOnly === applied.summaryOnly &&
+      draft.showCharts === applied.showCharts;
+    if (activeTab === "statement") {
+      setApplying(true);
+      if (draftMatchesApplied) setApplyToken((token) => token + 1);
     }
     listing.setFilters(
       {
@@ -221,10 +247,11 @@ export function BalanceSheetClient() {
       },
       true,
     );
-  }, [draft, listing, activeTab]);
+  }, [applying, applied, draft, listing, activeTab]);
 
   const handleReset = useCallback(() => {
     const next = defaultFilters();
+    setApplying(false);
     setDraft(next);
     listing.setFilters(
       {
@@ -399,6 +426,7 @@ export function BalanceSheetClient() {
               onChange={setDraft}
               onApply={handleApply}
               onReset={handleReset}
+              applying={applying}
             />
           </div>
 

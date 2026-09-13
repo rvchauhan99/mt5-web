@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCalendar, IconChevronDown, IconChevronUp, IconFilter } from "@tabler/icons-react";
+import { IconCalendar, IconChevronDown, IconChevronUp, IconFilter, IconLoader2 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -30,6 +30,7 @@ interface BalanceSheetFiltersProps {
   onChange: (next: BalanceSheetFilterValues) => void;
   onApply: () => void;
   onReset: () => void;
+  applying?: boolean;
 }
 
 function toLocalYmd(date: Date): string {
@@ -118,6 +119,7 @@ export function BalanceSheetFilters({
   onChange,
   onApply,
   onReset,
+  applying = false,
 }: BalanceSheetFiltersProps) {
   const [exchanges, setExchanges] = useState<Array<{ id: string; name: string }>>([]);
   const [groups, setGroups] = useState<BalanceSheetGroupOption[]>([]);
@@ -185,10 +187,25 @@ export function BalanceSheetFilters({
           <button type="button" onClick={() => setAdvancedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50" aria-expanded={advancedOpen}>
             Advanced {advancedOpen ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
           </button>
-          <Button type="button" size="sm" onClick={onApply} className="h-9 text-xs">Apply</Button>
-          <Button type="button" size="sm" variant="outline" onClick={onReset} className="h-9 text-xs">Reset</Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={onApply}
+            disabled={applying}
+            startIcon={applying ? <IconLoader2 size={14} className="animate-spin" /> : undefined}
+            className="h-9 min-w-20 text-xs"
+          >
+            {applying ? "Applying…" : "Apply"}
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={onReset} disabled={applying} className="h-9 text-xs">Reset</Button>
         </div>
       </div>
+      {applying && (
+        <div className="flex items-center gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700" role="status" aria-live="polite">
+          <IconLoader2 size={14} className="animate-spin" aria-hidden />
+          Applying filters and loading the balance sheet…
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">
