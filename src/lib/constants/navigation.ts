@@ -315,6 +315,13 @@ export const NAV_ITEMS: AppNavNode[] = [
         requiredPermission: NAV_PERMISSIONS.REPORTS_EXPENSE_ANALYSIS,
       },
       {
+        id: "reports-balance-sheet",
+        label: "Balance Sheet",
+        href: "/reports/balance-sheet",
+        keywords: ["tally", "assets", "liabilities", "equity", "pnl"],
+        requiredPermission: NAV_PERMISSIONS.REPORTS_BALANCE_SHEET,
+      },
+      {
         id: "reports-liability",
         label: "Liability",
         href: "/reports/liability",

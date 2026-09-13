@@ -90,6 +90,7 @@ const PREFIX_RULES: { prefix: string; access: RouteAccess }[] = [
   },
   { prefix: "/reports/transaction-history", access: { kind: "permission", permission: NAV_PERMISSIONS.REPORTS_TRANSACTION_HISTORY } },
   { prefix: "/reports/expense-analysis", access: { kind: "permission", permission: NAV_PERMISSIONS.REPORTS_EXPENSE_ANALYSIS } },
+  { prefix: "/reports/balance-sheet", access: { kind: "permission", permission: NAV_PERMISSIONS.REPORTS_BALANCE_SHEET } },
   { prefix: "/user-history", access: { kind: "permission", permission: NAV_PERMISSIONS.USER_HISTORY_VIEW } },
   { prefix: "/dashboard", access: { kind: "permission", permission: NAV_PERMISSIONS.DASHBOARD_VIEW } },
   { prefix: "/masters", access: { kind: "superadminOnly" } },

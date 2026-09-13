@@ -27,7 +27,7 @@ export const PERMISSION_ACTION_ORDER: Partial<Record<string, string[]>> = {
   bank: ["add", "list", "statement"],
   deposit: ["banker", "exchange", "final_view"],
   withdrawal: ["exchange", "banker", "final_view"],
-  reports: ["transaction_history", "expense_analysis", "liability"],
+  reports: ["transaction_history", "expense_analysis", "balance_sheet", "balance_sheet_admin", "liability"],
   expense: ["add", "list", "audit"],
   liability: ["persons", "entries", "ledger"],
 };

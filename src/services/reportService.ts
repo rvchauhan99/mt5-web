@@ -1,5 +1,12 @@
 import { apiClient } from "./apiClient";
 import type { ExpenseAnalysisFilterParams, ExpenseAnalysisSummary } from "./expenseService";
+import type {
+  BalanceSheetCompareMode,
+  BalanceSheetData,
+  BalanceSheetDrilldownRow,
+  BalanceSheetGroupOption,
+  BalanceSheetQueryParams,
+} from "@/types/balanceSheet";
 
 function buildExpenseAnalysisQueryParams(
   params?: ExpenseAnalysisFilterParams,
@@ -11,6 +18,23 @@ function buildExpenseAnalysisQueryParams(
     const trimmed = String(value).trim();
     if (trimmed) out[key] = trimmed;
   });
+  return out;
+}
+
+function buildBalanceSheetQueryParams(
+  params?: BalanceSheetQueryParams,
+): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  if (!params) return out;
+  if (params.fromDate) out.fromDate = params.fromDate;
+  if (params.toDate) out.toDate = params.toDate;
+  if (params.exchangeId) out.exchangeId = params.exchangeId;
+  if (params.groupId) out.groupId = params.groupId;
+  if (params.groupCode) out.groupCode = params.groupCode;
+  if (params.currency) out.currency = params.currency;
+  if (params.compare) out.compare = params.compare;
+  if (params.showZeroBalances != null) out.showZeroBalances = params.showZeroBalances;
+  if (params.includeSubGroups != null) out.includeSubGroups = params.includeSubGroups;
   return out;
 }
 
@@ -38,7 +62,6 @@ export const reportService = {
     const res = await apiClient.get("/history", { params });
     return res.data;
   },
-  /** Entity dropdown options for Transaction History (requires `reports.transaction_history`). */
   transactionHistoryEntities: async () => {
     const res = await apiClient.get("/reports/audit-entities");
     return res.data as { success?: boolean; data?: string[] };
@@ -125,4 +148,75 @@ export const reportService = {
     });
     return res.data;
   },
+
+  balanceSheet: async (
+    params: BalanceSheetQueryParams,
+    signal?: AbortSignal,
+  ): Promise<BalanceSheetData> => {
+    const res = await apiClient.get<{ success?: boolean; data?: BalanceSheetData }>(
+      "/reports/balance-sheet",
+      {
+        params: buildBalanceSheetQueryParams(params),
+        signal,
+      },
+    );
+    if (!res.data?.data) {
+      throw new Error("Failed to load balance sheet");
+    }
+    return res.data.data;
+  },
+
+  balanceSheetSummary: async (params: BalanceSheetQueryParams, signal?: AbortSignal) => {
+    const res = await apiClient.get("/reports/balance-sheet/summary", {
+      params: buildBalanceSheetQueryParams(params),
+      signal,
+    });
+    return res.data?.data;
+  },
+
+  balanceSheetGroups: async (): Promise<BalanceSheetGroupOption[]> => {
+    const res = await apiClient.get<{ success?: boolean; data?: BalanceSheetGroupOption[] }>(
+      "/reports/balance-sheet/groups",
+    );
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  balanceSheetDrilldown: async (params: {
+    fromDate: string;
+    toDate: string;
+    exchangeId?: string;
+    ledgerId: string;
+    ledgerType: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    rows: BalanceSheetDrilldownRow[];
+    meta: { page: number; pageSize: number; total: number };
+  }> => {
+    const res = await apiClient.get("/reports/balance-sheet/drilldown", { params });
+    return {
+      rows: Array.isArray(res.data?.data) ? res.data.data : [],
+      meta: res.data?.meta ?? { page: 1, pageSize: 50, total: 0 },
+    };
+  },
+
+  exportBalanceSheet: async (params: BalanceSheetQueryParams) => {
+    const res = await apiClient.get("/reports/balance-sheet/export", {
+      params: buildBalanceSheetQueryParams(params),
+      responseType: "blob",
+    });
+    return res.data as Blob;
+  },
+
+  createBalanceSheetSnapshot: async (body: {
+    fromDate: string;
+    toDate: string;
+    exchangeId?: string;
+    note?: string;
+  }) => {
+    const res = await apiClient.post("/reports/balance-sheet/snapshot", body);
+    return res.data?.data;
+  },
 };
+
+export type { BalanceSheetCompareMode };
