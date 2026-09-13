@@ -14,6 +14,7 @@ interface BalanceSheetTreeProps {
   compactDensity?: boolean;
   expandAllToken?: number;
   onLedgerClick: (ledger: BalanceSheetLedger) => void;
+  accent?: "emerald" | "rose" | "indigo";
 }
 
 type FlatRow =
@@ -69,6 +70,7 @@ export function BalanceSheetTree({
   compactDensity = false,
   expandAllToken = 0,
   onLedgerClick,
+  accent = "emerald",
 }: BalanceSheetTreeProps) {
   const { formatMoney } = useFormatMoney();
   const [expanded, setExpanded] = useState<Set<string>>(() => collectDefaultExpanded(nodes));
@@ -108,12 +110,13 @@ export function BalanceSheetTree({
   const cellPad = compactDensity ? "py-1.5" : "py-2.5";
   const baseColSpan =
     2 + (showMovementColumns ? 3 : 0) + (showCompare ? 2 : 0) + (compactDensity ? 0 : 1);
+  const accentClass = { emerald: "text-emerald-700", rose: "text-rose-700", indigo: "text-indigo-700" }[accent];
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden print:shadow-none print:break-inside-avoid">
       <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/80 px-4 py-3 no-print">
         <div>
-          <h2 className="text-sm font-bold text-slate-900">{title}</h2>
+          <h2 className={cn("text-sm font-bold", accentClass)}>{title}</h2>
           <p className="text-[11px] text-slate-500 font-medium tabular-nums">
             Total {formatMoney(sectionTotal)}
           </p>
@@ -175,7 +178,7 @@ export function BalanceSheetTree({
                 </td>
               </tr>
             )}
-            {rows.map((row) => {
+            {rows.map((row, index) => {
               if (row.kind === "group") {
                 const isOpen = expanded.has(row.node.groupId);
                 const hasChildren =
@@ -183,7 +186,7 @@ export function BalanceSheetTree({
                 return (
                   <tr
                     key={`g-${row.node.groupId}`}
-                    className="hover:bg-slate-50/80 cursor-pointer print:break-inside-avoid"
+                    className="bg-slate-50/60 hover:bg-slate-50/80 cursor-pointer print:break-inside-avoid"
                     onClick={() => hasChildren && handleToggle(row.node.groupId)}
                     onKeyDown={(e) => hasChildren && handleGroupKeyDown(e, row.node.groupId)}
                     tabIndex={hasChildren ? 0 : undefined}
@@ -269,7 +272,7 @@ export function BalanceSheetTree({
               return (
                 <tr
                   key={`l-${row.groupCode}-${row.ledger.ledgerId}`}
-                  className="hover:bg-brand-primary/5 cursor-pointer print:break-inside-avoid"
+                  className={cn("cursor-pointer print:break-inside-avoid", index % 2 ? "bg-slate-50/40" : "", "hover:bg-brand-primary/5")}
                   onClick={() => onLedgerClick(row.ledger)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {

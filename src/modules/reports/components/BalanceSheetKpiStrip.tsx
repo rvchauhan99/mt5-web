@@ -44,11 +44,19 @@ export function BalanceSheetKpiStrip({ totals, meta }: BalanceSheetKpiStripProps
       tone: "text-slate-800",
       bg: "bg-slate-50",
     },
+    {
+      label: "Net P&L",
+      value: totals.netPL,
+      compare: null,
+      icon: IconTrendingUp,
+      tone: totals.netPL >= 0 ? "text-indigo-700" : "text-rose-700",
+      bg: "bg-indigo-50/40",
+    },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           const delta =
@@ -86,6 +94,16 @@ export function BalanceSheetKpiStrip({ totals, meta }: BalanceSheetKpiStripProps
             </div>
           );
         })}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="mb-2 flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400"><span>Balance composition</span><span>{formatMoney(totals.totalLiabilities + totals.totalEquity)} funded</span></div>
+        <div className="flex h-2 overflow-hidden rounded-full bg-slate-100" aria-label="Balance composition ratio">
+          <div className="bg-emerald-500" style={{ width: `${Math.min(100, Math.max(0, totals.totalAssets ? (totals.totalAssets / Math.max(totals.totalAssets, totals.totalLiabilities + totals.totalEquity)) * 100 : 0))}%` }} />
+          <div className="bg-rose-400" style={{ width: `${Math.min(100, Math.max(0, totals.totalAssets ? (totals.totalLiabilities / Math.max(totals.totalAssets, totals.totalLiabilities + totals.totalEquity)) * 100 : 0))}%` }} />
+          <div className="bg-indigo-400 flex-1" />
+        </div>
+        <div className="mt-2 flex gap-4 text-[11px] text-slate-500"><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />Assets</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-rose-400" />Liabilities</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-indigo-400" />Equity</span></div>
       </div>
 
       <div

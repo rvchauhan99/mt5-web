@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCalendar, IconFilter } from "@tabler/icons-react";
+import { IconCalendar, IconChevronDown, IconChevronUp, IconFilter } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -9,6 +9,7 @@ import { listExchangeLookupOptions } from "@/services/lookupService";
 import { reportService } from "@/services/reportService";
 import { getApiErrorMessage } from "@/lib/apiError";
 import type { BalanceSheetCompareMode, BalanceSheetGroupOption } from "@/types/balanceSheet";
+import { BalanceSheetDateRangePicker } from "./BalanceSheetDateRangePicker";
 
 export interface BalanceSheetFilterValues {
   fromDate: string;
@@ -21,6 +22,7 @@ export interface BalanceSheetFilterValues {
   showMovementColumns: boolean;
   compactDensity: boolean;
   summaryOnly: boolean;
+  showCharts: boolean;
 }
 
 interface BalanceSheetFiltersProps {
@@ -120,6 +122,7 @@ export function BalanceSheetFilters({
   const [exchanges, setExchanges] = useState<Array<{ id: string; name: string }>>([]);
   const [groups, setGroups] = useState<BalanceSheetGroupOption[]>([]);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,10 +174,20 @@ export function BalanceSheetFilters({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
         <IconFilter size={12} aria-hidden />
         Filters
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <BalanceSheetDateRangePicker fromDate={values.fromDate} toDate={values.toDate} onChange={(range) => { setActivePreset(null); onChange({ ...values, ...range }); }} />
+          <button type="button" onClick={() => setAdvancedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50" aria-expanded={advancedOpen}>
+            Advanced {advancedOpen ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+          </button>
+          <Button type="button" size="sm" onClick={onApply} className="h-9 text-xs">Apply</Button>
+          <Button type="button" size="sm" variant="outline" onClick={onReset} className="h-9 text-xs">Reset</Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -200,7 +213,7 @@ export function BalanceSheetFilters({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+      {advancedOpen && <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
           From
           <Input
@@ -290,7 +303,7 @@ export function BalanceSheetFilters({
             aria-label="Search groups and ledgers"
           />
         </label>
-      </div>
+      </div>}
 
       <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600">
         <label className="flex items-center gap-2">
@@ -333,15 +346,7 @@ export function BalanceSheetFilters({
           />
           Summary only
         </label>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Button type="button" size="sm" onClick={onApply} className="h-8 text-xs">
-          Apply
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={onReset} className="h-8 text-xs">
-          Reset
-        </Button>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={values.showCharts} onChange={(e) => onChange({ ...values, showCharts: e.target.checked })} className="h-4 w-4 rounded border-slate-300" aria-label="Show overview charts" /> Show overview charts</label>
       </div>
     </div>
   );

@@ -42,6 +42,8 @@ import {
 } from "./BalanceSheetFilters";
 import { BalanceSheetTree } from "./BalanceSheetTree";
 import { BalanceSheetDrilldown } from "./BalanceSheetDrilldown";
+import { BalanceSheetOverviewCharts } from "./BalanceSheetOverviewCharts";
+import { BalanceSheetSkeleton } from "./BalanceSheetSkeleton";
 import { BalanceSheetMovementsTab } from "./balance-sheet/BalanceSheetMovementsTab";
 import { PLATFORM_NAME } from "@/lib/constants/branding";
 
@@ -66,6 +68,7 @@ const FILTER_KEYS = [
   "showMovementColumns",
   "compactDensity",
   "summaryOnly",
+  "showCharts",
 ];
 
 function defaultFilters(): BalanceSheetFilterValues {
@@ -81,6 +84,7 @@ function defaultFilters(): BalanceSheetFilterValues {
     showMovementColumns: false,
     compactDensity: false,
     summaryOnly: false,
+    showCharts: true,
   };
 }
 
@@ -131,6 +135,7 @@ export function BalanceSheetClient() {
       showMovementColumns: f.showMovementColumns === "true",
       compactDensity: f.compactDensity === "true",
       summaryOnly: f.summaryOnly === "true",
+      showCharts: f.showCharts !== "false",
     };
   }, [listing.filters, defaults]);
 
@@ -212,6 +217,7 @@ export function BalanceSheetClient() {
         showMovementColumns: draft.showMovementColumns ? "true" : "",
         compactDensity: draft.compactDensity ? "true" : "",
         summaryOnly: draft.summaryOnly ? "true" : "",
+        showCharts: draft.showCharts ? "true" : "false",
       },
       true,
     );
@@ -233,6 +239,7 @@ export function BalanceSheetClient() {
         showMovementColumns: "",
         compactDensity: "",
         summaryOnly: "",
+        showCharts: "",
       },
       true,
     );
@@ -402,10 +409,9 @@ export function BalanceSheetClient() {
           {activeTab === "statement" ? (
             loading && !data ? (
               <div
-                className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500"
-                aria-busy="true"
+                className="rounded-xl border border-slate-200 bg-white"
               >
-                Loading balance sheet…
+                <BalanceSheetSkeleton showCharts={applied.showCharts} />
               </div>
             ) : data ? (
               <div id="balance-sheet-print" ref={printRef} className="space-y-5">
@@ -431,6 +437,10 @@ export function BalanceSheetClient() {
                 )}
 
                 <BalanceSheetKpiStrip totals={data.totals} meta={data.meta} />
+
+                {applied.showCharts && !applied.summaryOnly && (
+                  <BalanceSheetOverviewCharts assets={filteredAssets} liabilities={filteredLiabilities} equity={filteredEquity} totals={data.totals} />
+                )}
 
                 {!applied.summaryOnly && (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

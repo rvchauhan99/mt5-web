@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { IconDownload, IconX } from "@tabler/icons-react";
+import { IconArrowDownRight, IconArrowUpRight, IconDownload, IconX } from "@tabler/icons-react";
 import { reportService } from "@/services/reportService";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import { useExport } from "@/hooks/useExport";
@@ -35,9 +35,12 @@ export function BalanceSheetDrilldown({
 
   useEffect(() => {
     if (!open || !ledger) return;
-    setPage(1);
-    setReloadToken((t) => t + 1);
-  }, [open, ledger?.ledgerId, fromDate, toDate, exchangeId]);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setReloadToken((t) => t + 1);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, ledger, fromDate, toDate, exchangeId]);
 
   useEffect(() => {
     if (!open) return;
@@ -150,8 +153,13 @@ export function BalanceSheetDrilldown({
             <h2 id="bs-drilldown-title" className="text-base font-bold text-slate-900 truncate">
               {ledger.name}
             </h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              {ledger.type} · Closing {formatMoney(ledger.closingBalance)}
+            <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-600">{ledger.type}</span>
+              <span className="rounded-full bg-indigo-50 px-2 py-1 font-semibold text-indigo-700">Closing {formatMoney(ledger.closingBalance)}</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">{ledger.side === "asset" ? "Debit balance" : "Credit balance"}</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              {ledger.name} ledger movements
             </p>
             <p className="text-[10px] text-slate-400 mt-1">
               {fromDate} → {toDate}
@@ -193,6 +201,7 @@ export function BalanceSheetDrilldown({
         </div>
 
         <div className="flex-1 overflow-hidden px-3 py-3">
+          <div className="mb-2 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500"><IconArrowDownRight size={14} className="text-rose-500" /> Outflows and <IconArrowUpRight size={14} className="text-emerald-500" /> inflows are shown in the Direction column.</div>
           <PaginatedTableReference
             columns={columns}
             fetcher={fetcher}
