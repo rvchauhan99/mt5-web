@@ -81,6 +81,7 @@ export function WithdrawalFinalListClient() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [amendAmount, setAmendAmount] = useState("");
+  const [amendCharges, setAmendCharges] = useState("0");
   const [amendRequestedAt, setAmendRequestedAt] = useState(currentDateTimeLocalValue());
   const [amendPayoutBankId, setAmendPayoutBankId] = useState("");
   const [amendPayoutBankDefault, setAmendPayoutBankDefault] = useState<AutocompleteOption | null>(null);
@@ -93,6 +94,7 @@ export function WithdrawalFinalListClient() {
   const [amendLoading, setAmendLoading] = useState(false);
   const [amendErrors, setAmendErrors] = useState<{
     amount?: string;
+    charges?: string;
     payoutBankId?: string;
     utr?: string;
     reason?: string;
@@ -192,6 +194,7 @@ export function WithdrawalFinalListClient() {
     const isLp = row.payoutSettlementType === "person";
     setAmendIsPersonPayout(isLp);
     setAmendAmount(String(row.amount));
+    setAmendCharges(String(Math.round(Number(row.reverseBonus ?? 0))));
     setAmendRequestedAt(utcIsoToDateTimeLocalValue(row.requestedAt));
     setAmendPayoutBankId(isLp ? "" : row.payoutBankId?.trim() || "");
     setAmendPayoutBankDefault(
@@ -222,6 +225,14 @@ export function WithdrawalFinalListClient() {
     } else if (!Number.isInteger(amountNum)) {
       next.amount = "Amount must be a whole number (no decimals).";
     }
+    const chargesNum = Number(amendCharges.trim() || "0");
+    if (!Number.isFinite(chargesNum) || chargesNum < 0) {
+      next.charges = "Charges must be a whole number ≥ 0.";
+    } else if (!Number.isInteger(chargesNum)) {
+      next.charges = "Charges must be a whole number (no decimals).";
+    } else if (!next.amount && chargesNum > amountNum) {
+      next.charges = "Charges cannot exceed withdrawal amount.";
+    }
     if (!amendIsPersonPayout && !amendPayoutBankId.trim()) next.payoutBankId = "Payout bank is required.";
     if (!amendUtr.trim()) next.utr = "Reference number is required.";
     if (!amendReasonId.trim()) next.reason = "Reason selection is required.";
@@ -233,7 +244,7 @@ export function WithdrawalFinalListClient() {
     try {
       const amendBody = {
         amount: amountNum,
-        reverseBonus: 0,
+        reverseBonus: chargesNum,
         utr: amendUtr.trim(),
         requestedAt: amendRequestedAt || undefined,
         reasonId: amendReasonId.trim(),
@@ -257,6 +268,7 @@ export function WithdrawalFinalListClient() {
   }, [
     selectedWithdrawal,
     amendAmount,
+    amendCharges,
     amendRequestedAt,
     amendPayoutBankId,
     amendUtr,
@@ -595,6 +607,21 @@ export function WithdrawalFinalListClient() {
             />
             <p className="mt-1 text-xs text-gray-500">Use 0 when the bank transaction was fully refunded.</p>
             <FieldError message={amendErrors.amount} />
+          </div>
+          <div>
+            <FieldLabel>Charges</FieldLabel>
+            <Input
+              className="h-9"
+              type="number"
+              min={0}
+              step="1"
+              value={amendCharges}
+              onChange={(e) => setAmendCharges(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Payable = amount − charges (bank/person cash).
+            </p>
+            <FieldError message={amendErrors.charges} />
           </div>
           <div className="sm:col-span-2">
             <FieldLabel>Requested date & time</FieldLabel>

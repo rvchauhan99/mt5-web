@@ -146,6 +146,8 @@ export function WithdrawalExchangeClient() {
   const [cryptoNetwork, setCryptoNetwork] = useState("");
   const [cryptoAsset, setCryptoAsset] = useState("");
   const [money, setMoney] = useState(() => defaultOperatedMoneyValue(platformCurrency));
+  /** Charges (UI) → API reverseBonus; same operated currency as withdrawal amount. */
+  const [charges, setCharges] = useState("0");
   const [requestedAt, setRequestedAt] = useState(currentDateTimeLocalValue());
   const [savedPreset, setSavedPreset] = useState("");
   const [savedRows, setSavedRows] = useState<SavedWithdrawalAccount[]>([]);
@@ -303,11 +305,16 @@ export function WithdrawalExchangeClient() {
     try {
       const fx = toMoneyFxPayload(money, platformCurrency);
       if (!Number.isFinite(fx.amount) || fx.amount < 1) return 0;
-      return roundMoneyToCurrency(fx.amount, platformCurrency);
+      const chargesOp = Number(charges.trim() || "0");
+      if (!Number.isFinite(chargesOp) || chargesOp < 0) return roundMoneyToCurrency(fx.amount, platformCurrency);
+      const rate =
+        fx.operatedCurrency === platformCurrency ? 1 : Number(fx.exchangeRate) || 1;
+      const chargesPlat = roundMoneyToCurrency(chargesOp * rate, platformCurrency);
+      return Math.max(0, roundMoneyToCurrency(fx.amount - chargesPlat, platformCurrency));
     } catch {
       return 0;
     }
-  }, [money, platformCurrency]);
+  }, [money, charges, platformCurrency]);
 
   const onSubmit = async () => {
     if (!platformCurrency) {
@@ -336,6 +343,24 @@ export function WithdrawalExchangeClient() {
         next.amount = "Enter a valid exchange rate.";
       }
     }
+    const chargesOp = Number(charges.trim() || "0");
+    if (!Number.isFinite(chargesOp) || chargesOp < 0) {
+      next.charges = "Charges must be a number ≥ 0.";
+    } else if (!Number.isInteger(chargesOp)) {
+      next.charges = "Charges must be a whole number (no decimals).";
+    } else if (!next.amount) {
+      try {
+        const fx = toMoneyFxPayload(money, platformCurrency);
+        const rate =
+          fx.operatedCurrency === platformCurrency ? 1 : Number(fx.exchangeRate) || 1;
+        const chargesPlat = roundMoneyToCurrency(chargesOp * rate, platformCurrency);
+        if (chargesPlat > fx.amount) {
+          next.charges = "Charges cannot exceed withdrawal amount.";
+        }
+      } catch {
+        /* amount error already covers invalid money */
+      }
+    }
     if (!editingId) {
       if (payoutSettlementType === "bank" && !payoutBankId.trim()) {
         next.bankId = "Payout bank is required.";
@@ -349,6 +374,7 @@ export function WithdrawalExchangeClient() {
     if (Object.keys(next).length > 0) return;
 
     const fx = toMoneyFxPayload(money, platformCurrency);
+    const reverseBonus = Number(charges.trim() || "0");
 
     setLoading(true);
     try {
@@ -365,7 +391,7 @@ export function WithdrawalExchangeClient() {
           operatedCurrency: fx.operatedCurrency,
           operatedAmount: fx.operatedAmount,
           exchangeRate: fx.exchangeRate,
-          reverseBonus: 0,
+          reverseBonus,
         });
         toast.success("Withdrawal updated successfully.");
       } else {
@@ -394,7 +420,7 @@ export function WithdrawalExchangeClient() {
                 operatedCurrency: fx.operatedCurrency,
                 operatedAmount: fx.operatedAmount,
                 exchangeRate: fx.exchangeRate,
-                reverseBonus: 0,
+                reverseBonus,
                 requestedAt,
                 payoutSettlementType: "bank",
                 bankId: payoutBankId.trim(),
@@ -407,7 +433,7 @@ export function WithdrawalExchangeClient() {
                 operatedCurrency: fx.operatedCurrency,
                 operatedAmount: fx.operatedAmount,
                 exchangeRate: fx.exchangeRate,
-                reverseBonus: 0,
+                reverseBonus,
                 requestedAt,
                 payoutSettlementType: "person",
                 liabilityPersonId: liabilityPersonId.trim(),
@@ -425,6 +451,7 @@ export function WithdrawalExchangeClient() {
       setCryptoNetwork("");
       setCryptoAsset("");
       setMoney(defaultOperatedMoneyValue(platformCurrency));
+      setCharges("0");
       setRequestedAt(currentDateTimeLocalValue());
       setSavedPreset("");
       setUtr("");
@@ -452,6 +479,16 @@ export function WithdrawalExchangeClient() {
       operatedCurrency: row.operatedCurrency || platformCurrency || "",
       exchangeRate: String(row.exchangeRate ?? 1),
     });
+    // reverseBonus is stored in platform currency; when operated === platform, show as-is.
+    // For FX rows, approximate operated charges by dividing by rate for edit hydration.
+    const storedCharges = Number(row.reverseBonus ?? 0);
+    const rate = Number(row.exchangeRate ?? 1) || 1;
+    const opCur = row.operatedCurrency || platformCurrency || "";
+    const chargesOperated =
+      opCur === platformCurrency || rate === 1
+        ? storedCharges
+        : roundMoneyToCurrency(storedCharges / rate, opCur);
+    setCharges(String(Math.round(chargesOperated)));
     setErrors({});
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -466,6 +503,7 @@ export function WithdrawalExchangeClient() {
     setCryptoNetwork("");
     setCryptoAsset("");
     setMoney(defaultOperatedMoneyValue(platformCurrency));
+    setCharges("0");
     setRequestedAt(currentDateTimeLocalValue());
     setSavedPreset("");
     setPayoutSettlementType("bank");
@@ -602,6 +640,13 @@ export function WithdrawalExchangeClient() {
         filterKeyTo: "amount_to",
         operatorKey: "amount_op",
         defaultFilterOperator: "equals",
+      },
+      {
+        field: "reverseBonus",
+        label: "Charges",
+        render: (row: WithdrawalRow) => formatWholeMoney(row.reverseBonus ?? 0),
+        sortable: true,
+        minWidth: 100,
       },
       {
         field: "payableAmount",
@@ -1017,6 +1062,22 @@ export function WithdrawalExchangeClient() {
                     <FieldError message={errors.amount} />
                   </div>
                 ) : null}
+                <div>
+                  <FieldLabel>Charges</FieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    inputMode="numeric"
+                    value={charges}
+                    onChange={(e) => setCharges(e.target.value)}
+                    placeholder="0"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Deducted from withdrawal; bank/person receives payable.
+                  </p>
+                  <FieldError message={errors.charges} />
+                </div>
                 <div>
                   <FieldLabel>Payable amount</FieldLabel>
                   <Input readOnly value={formatWholeMoney(payablePreview)} className="bg-slate-50" />
