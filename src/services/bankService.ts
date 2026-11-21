@@ -272,6 +272,25 @@ export async function getBankLedger(
   return res.data.data;
 }
 
+export async function exportBankLedgerPdf(
+  bankId: string,
+  params?: {
+    fromDate?: string;
+    toDate?: string;
+    entryType?: "all" | "deposit" | "withdrawal" | "expense" | "liability" | "settlement" | "referral";
+  },
+): Promise<Blob> {
+  const response = await apiClient.get(`/bank/${bankId}/ledger/export`, {
+    params: {
+      fromDate: params?.fromDate || undefined,
+      toDate: params?.toDate || undefined,
+      entryType: params?.entryType || undefined,
+    },
+    responseType: "blob",
+  });
+  return response.data as Blob;
+}
+
 export async function getBankComputedClosing(bankId: string): Promise<BankComputedClosingResponse> {
   const res = await apiClient.get<{ success: boolean; data: BankComputedClosingResponse }>(
     `/bank/${bankId}/computed-closing`,

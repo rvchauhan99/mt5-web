@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  IconPrinter,
+  IconDownload,
   IconFilter,
   IconCalendar,
   IconArrowUpRight,
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import {
   createBankSettlement,
+  exportBankLedgerPdf,
   getBankComputedClosing,
   getBankLedger,
   listBanksRaw,
@@ -35,6 +36,7 @@ import {
   dateTimeLocalValueToUtcIso,
   formatDateTimeForUser,
 } from "@/lib/userTimezone";
+import { useExport } from "@/hooks/useExport";
 
 const ENTRY_TYPES = ["all", "deposit", "withdrawal", "expense", "liability", "settlement", "referral"] as const;
 type EntryTypeFilter = (typeof ENTRY_TYPES)[number];
@@ -61,7 +63,21 @@ export default function BankStatementPage() {
   const [ledger, setLedger] = useState<BankLedgerResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+
+  const { exporting, handleExport } = useExport(
+    (params: { bankId: string; fromDate?: string; toDate?: string; entryType?: EntryTypeFilter }) =>
+      exportBankLedgerPdf(params.bankId, {
+        fromDate: params.fromDate,
+        toDate: params.toDate,
+        entryType: params.entryType,
+      }),
+    {
+      fileName: `bank-statement-${new Date().toISOString().slice(0, 10)}.pdf`,
+      onError: (err) => {
+        setError(getApiErrorMessage(err, "Failed to download PDF"));
+      },
+    },
+  );
 
   const loadBankOptions = useCallback(async (query: string): Promise<AutocompleteOption[]> => {
     try {
@@ -177,55 +193,22 @@ export default function BankStatementPage() {
     setActivePreset(preset.label);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPdf = () => {
+    if (!bankId.trim()) {
+      setError("Please select a bank account first.");
+      return;
+    }
+    void handleExport({
+      bankId: bankId.trim(),
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+      entryType,
+    });
   };
 
   return (
     <>
-      {/* 
-        We use a global style for printing. It hides elements outside the print-container and 
-        formats the page layout properly for A4 landscape.
-      */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #print-container, #print-container * {
-            visibility: visible;
-          }
-          #print-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 20px;
-          }
-          .no-print {
-            display: none !important;
-          }
-          @page {
-            size: A4 landscape;
-            margin: 1cm;
-          }
-          table {
-            page-break-inside: auto;
-          }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-          thead {
-            display: table-header-group;
-          }
-          tfoot {
-            display: table-footer-group;
-          }
-        }
-      `}} />
-
-      <div className="space-y-4 pb-8 max-w-[1400px] mx-auto no-print">
+      <div className="space-y-4 pb-8 max-w-[1400px] mx-auto">
         {/* Header */}
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">
@@ -319,14 +302,25 @@ export default function BankStatementPage() {
               </div>
             </div>
 
-            <Button 
-              onClick={loadLedger} 
-              loading={loading} 
-              className="h-9 text-xs font-semibold px-4 ml-auto"
-              startIcon={<IconFilter size={16} />}
-            >
-              Generate Statement
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                onClick={handleDownloadPdf}
+                variant="secondary"
+                className="h-9 text-xs font-semibold px-4"
+                startIcon={<IconDownload size={16} />}
+                disabled={!bankId.trim() || exporting}
+              >
+                {exporting ? "Downloading…" : "Download PDF"}
+              </Button>
+              <Button
+                onClick={loadLedger}
+                loading={loading}
+                className="h-9 text-xs font-semibold px-4"
+                startIcon={<IconFilter size={16} />}
+              >
+                Generate Statement
+              </Button>
+            </div>
           </div>
           
           {error && (
@@ -412,9 +406,9 @@ export default function BankStatementPage() {
       </div>
 
       {ledger && (
-        <div id="print-container" ref={printRef} className="max-w-[1400px] mx-auto bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden print:border-none print:shadow-none print:rounded-none">
+        <div className="max-w-[1400px] mx-auto bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
           {/* Statement Header / Letterhead */}
-          <div className="p-6 border-b border-slate-200 bg-slate-50/50 print:bg-white flex justify-between items-start">
+          <div className="p-6 border-b border-slate-200 bg-slate-50/50 flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
                 {ledger.bank.displayName || bankDisplayLabel(ledger.bank)}
@@ -427,13 +421,14 @@ export default function BankStatementPage() {
                 <span>Generated: {new Date().toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit'})}</span>
               </div>
             </div>
-            <div className="no-print">
-              <Button 
-                onClick={handlePrint} 
-                variant="secondary" 
-                startIcon={<IconPrinter size={18} />}
+            <div>
+              <Button
+                onClick={handleDownloadPdf}
+                variant="secondary"
+                startIcon={<IconDownload size={18} />}
+                disabled={!bankId.trim() || exporting}
               >
-                Print PDF
+                {exporting ? "Downloading…" : "Download PDF"}
               </Button>
             </div>
           </div>
